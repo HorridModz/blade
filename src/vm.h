@@ -72,10 +72,12 @@ struct s_vm {
   // boolean flags
   bool is_repl;
   bool mark_value;
+  bool is_serializing;
   // for switching through the command line args...
   bool should_debug_stack;
   bool should_print_bytecode;
   bool should_exit_after_bytecode;
+  bool is_native_runtime;
 };
 
 void init_vm(b_vm *vm);
@@ -83,6 +85,8 @@ void init_vm(b_vm *vm);
 void free_vm(b_vm *vm);
 
 b_ptr_result interpret(b_vm *vm, b_obj_module *module, const char *source);
+
+b_ptr_result interpret_blob(b_vm *vm, b_obj_module *module, b_blob blob);
 
 void push(b_vm *vm, b_value value);
 

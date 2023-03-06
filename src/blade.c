@@ -16,6 +16,9 @@
 #if !defined(_WIN32) && !defined(__CYGWIN__)
 #include "linenoise/utf8.h"
 #include "linenoise/linenoise.h"
+#include "compiler.h"
+#include "serialize.h"
+
 #endif
 
 #include <setjmp.h>
@@ -205,6 +208,44 @@ static void run_file(b_vm *vm, char *file) {
     exit(EXIT_RUNTIME);
 }
 
+static void run_file_compile(b_vm *vm, char *file, char *output_name) {
+  char *source = read_file(file);
+  if (source == NULL) {
+    // check if it's a Blade library directory by attempting to read the index file.
+    char *old_file = file;
+    file = append_strings((char *)strdup(file), "/" LIBRARY_DIRECTORY_INDEX BLADE_EXTENSION);
+    source = read_file(file);
+
+    if(source == NULL) {
+      fprintf(stderr, "(Blade):\n  Compile aborted for %s\n  Reason: %s\n", old_file, strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  b_blob blob;
+  init_blob(&blob);
+
+  b_obj_module *module = new_module(vm, strdup(""), strdup(file));
+  add_module(vm, module);
+
+  b_obj_func *function = compile(vm, module, source, &blob);
+
+  if (vm->should_exit_after_bytecode) {
+    exit(EXIT_SUCCESS);
+  }
+
+  if (function == NULL) {
+    free_blob(vm, &blob);
+    exit(EXIT_COMPILE);
+  }
+
+  if(serialize(vm, function->blob, output_name) != NULL) {
+    exit(EXIT_SUCCESS);
+  }
+
+  exit(EXIT_FAILURE);
+}
+
 static void run_code(b_vm *vm, char *source) {
   // set root file...
   vm->root_file = NULL;
@@ -223,7 +264,7 @@ static void run_code(b_vm *vm, char *source) {
 
 void show_usage(char *argv[], bool fail) {
   FILE *out = fail ? stderr : stdout;
-  fprintf(out, "Usage: %s [-[h | c | d | e | j | v | g]] [filename]\n", argv[0]);
+  fprintf(out, "Usage: %s [-[h | c | s | d | e | j | v | g]] [filename]\n", argv[0]);
   fprintf(out, "   -h       Show this help message.\n");
   fprintf(out, "   -v       Show version string.\n");
   fprintf(out, "   -b       Buffer terminal outputs.\n");
@@ -234,7 +275,8 @@ void show_usage(char *argv[], bool fail) {
   fprintf(out, "   -g arg   Sets the minimum heap size in kilobytes before the GC\n"
                "            can start. [Default = %d (%dmb)]\n", DEFAULT_GC_START / 1024,
           DEFAULT_GC_START / (1024 * 1024));
-  fprintf(out, "   -c arg   Runs the give code.\n");
+  fprintf(out, "   -s arg   Runs the give code.\n");
+  fprintf(out, "   -c arg   Compiles the source code to executable with the given name.\n");
   exit(fail ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
@@ -244,12 +286,13 @@ int main(int argc, char *argv[]) {
   bool should_print_bytecode = false;
   bool should_buffer_stdout = false;
   bool should_exit_after_bytecode = false;
+  char *output_exe_name = NULL;
   char *source = NULL;
   int next_gc_start = DEFAULT_GC_START;
 
   if (argc > 1) {
     int opt;
-    while ((opt = getopt(argc, argv, "hdebjvgc:")) != -1) {
+    while ((opt = getopt(argc, argv, "hdebjvgsc:")) != -1) {
       switch (opt) {
         case 'h':
           show_usage(argv, false); // exits
@@ -277,8 +320,16 @@ int main(int argc, char *argv[]) {
           }
           break;
         }
-        case 'c': {
+        case 's': {
           source = optarg;
+          break;
+        }
+        case 'c': {
+          if (argc <= optind) {
+            fprintf(stderr, "Option -c cannot be used with the REPL.\n");
+            return EXIT_FAILURE;
+          }
+          output_exe_name = optarg;
           break;
         }
         default:
@@ -327,7 +378,11 @@ int main(int argc, char *argv[]) {
     } else if (argc == 1 || argc <= optind) {
       repl(vm);
     } else {
-      run_file(vm, argv[optind]);
+      if(output_exe_name == NULL) {
+        run_file(vm, argv[optind]);
+      } else {
+        run_file_compile(vm, argv[optind], output_exe_name);
+      }
     }
 
     free(std_args);

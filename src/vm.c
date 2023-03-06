@@ -508,6 +508,8 @@ void init_vm(b_vm *vm) {
   vm->should_debug_stack = false;
   vm->should_print_bytecode = false;
   vm->should_exit_after_bytecode = false;
+  vm->is_serializing = false;
+  vm->is_native_runtime = false;
 
   vm->gray_count = 0;
   vm->gray_capacity = 0;
@@ -2506,6 +2508,41 @@ b_ptr_result interpret(b_vm *vm, b_obj_module *module, const char *source) {
 
   push(vm, OBJ_VAL(function));
   b_obj_closure *closure = new_closure(vm, function);
+  pop(vm);
+  push(vm, OBJ_VAL(closure));
+  call(vm, closure, 0);
+
+  b_ptr_result result = run(vm);
+
+  return result;
+}
+
+b_ptr_result interpret_blob(b_vm *vm, b_obj_module *module, b_blob blob) {
+  if(vm->exception_class == NULL) {
+    initialize_exceptions(vm, module);
+  }
+
+  b_obj_func *fn = new_function(vm, module, TYPE_SCRIPT);
+
+  if (fn == NULL) {
+    free_blob(vm, &blob);
+    return PTR_COMPILE_ERR;
+  }
+
+  fn->blob = blob;
+
+  // Init an empty compiler. This allows us to handle root marking in GC...
+  b_compiler compiler;
+  compiler.enclosing = NULL;
+  compiler.function = fn;
+  compiler.type = TYPE_SCRIPT;
+  compiler.local_count = 0;
+  compiler.scope_depth = 0;
+  compiler.handler_count = 0;
+  vm->compiler = &compiler;
+
+  push(vm, OBJ_VAL(fn));
+  b_obj_closure *closure = new_closure(vm, fn);
   pop(vm);
   push(vm, OBJ_VAL(closure));
   call(vm, closure, 0);

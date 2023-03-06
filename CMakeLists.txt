@@ -58,6 +58,7 @@ set(BLADE_SOURCES
 		src/util.c
 		src/value.c
 		src/vm.c
+		src/serialize.c
 		# standard module
 		src/standard/array.c
 		src/standard/base64.c

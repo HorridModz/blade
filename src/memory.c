@@ -16,7 +16,7 @@
 void *allocate(b_vm *vm, size_t size) {
   vm->bytes_allocated += size;
 
-  if (vm->bytes_allocated > vm->next_gc) {
+  if (vm->bytes_allocated > vm->next_gc && !vm->is_serializing) {
     collect_garbage(vm);
   }
 
@@ -37,7 +37,7 @@ void *allocate(b_vm *vm, size_t size) {
 void *reallocate(b_vm *vm, void *pointer, size_t old_size, size_t new_size) {
   vm->bytes_allocated += new_size - old_size;
 
-  if (new_size > old_size && vm->bytes_allocated > vm->next_gc) {
+  if (new_size > old_size && vm->bytes_allocated > vm->next_gc && !vm->is_serializing) {
     collect_garbage(vm);
   }
 

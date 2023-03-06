@@ -900,8 +900,8 @@ DECLARE_STRING_METHOD(matches) {
         int value_length = (int) (o_vector[2 * n + 1] - o_vector[2 * n]);
         int key_length = (int) name_entry_size - 3;
 
-        b_obj_string *name = (b_obj_string *) GC_L_STRING((char *)(tab_ptr + 2), key_length);
-        b_obj_string *value = (b_obj_string *) GC_L_STRING((char *)(subject + o_vector[2 * n]), value_length);
+        b_obj_string *name = (b_obj_string *) GC(copy_string(vm, (char *)(tab_ptr + 2), key_length));
+        b_obj_string *value = (b_obj_string *) GC(copy_string(vm, (char *)(subject + o_vector[2 * n]), value_length));
 
         b_value nlist;
         if (dict_get_entry(result, OBJ_VAL(name), &nlist)) {
