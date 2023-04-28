@@ -840,3 +840,54 @@ DECLARE_NATIVE(print) {
   }
   RETURN;
 }
+
+#include "threads.h"
+typedef struct {
+  b_vm *vm;
+  b_obj_func *function;
+} b_thread_arg;
+
+int b_thrd_function(void *data) {
+  b_thread_arg *thread = (b_thread_arg *)data;
+  int result = interpret_function(thread->vm, thread->function) == PTR_OK ? 0 : 1;
+  thread->function->obj.stale = false;
+  thread->function->module->obj.stale = false;
+  free(thread->vm->thread);
+  free_vm(thread->vm);
+  return result;
+}
+
+DECLARE_NATIVE(run_thread) {
+  ENFORCE_ARG_RANGE(run_thread, 1, 2);
+  ENFORCE_ARG_TYPE(run_thread, 0, IS_CLOSURE);
+  b_obj_func *fn = AS_CLOSURE(args[0])->function;
+  bool wait = false;
+  if(arg_count == 2) {
+    ENFORCE_ARG_TYPE(run_thread, 1, IS_BOOL);
+    wait = AS_BOOL(args[1]);
+  }
+
+  thrd_t *thread = ALLOCATE(thrd_t, 1);
+  if(thread) {
+    b_vm *thread_vm = create_child_vm(vm, thread);
+    if(thread_vm) {
+      b_thread_arg *thread_arg = ALLOCATE(b_thread_arg, 1);
+      if(thread_arg) {
+        thread_arg->vm = thread_vm;
+        thread_arg->function = fn;
+        fn->obj.stale = true;
+        fn->module->obj.stale = true;
+
+        if(thrd_create(thread, b_thrd_function, thread_arg) == thrd_success) {
+          if(wait) {
+            thrd_join(*thread, 0);
+          } else {
+//            thrd_detach(*thread);
+          }
+        }
+      }
+    }
+  }
+
+  RETURN;
+}

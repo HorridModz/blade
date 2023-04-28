@@ -8,6 +8,7 @@ typedef struct s_compiler b_compiler;
 #include "object.h"
 #include "table.h"
 #include "value.h"
+#include "threads/threads.h"
 
 typedef enum {
   PTR_OK,
@@ -79,13 +80,16 @@ struct s_vm {
   bool should_exit_after_bytecode;
 
   // miscellaneous
-  long stdout_buffer_size;
+  b_vm *next;
+  thrd_t *thread;
 };
 
 void init_vm(b_vm *vm);
+b_vm *create_child_vm(b_vm *vm, thrd_t *thread);
 
 void free_vm(b_vm *vm);
 
+b_ptr_result interpret_function(b_vm *vm, b_obj_func *function);
 b_ptr_result interpret(b_vm *vm, b_obj_module *module, const char *source);
 
 void push(b_vm *vm, b_value value);

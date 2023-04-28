@@ -306,7 +306,6 @@ int main(int argc, char *argv[]) {
     vm->should_print_bytecode = should_print_bytecode;
     vm->should_exit_after_bytecode = should_exit_after_bytecode;
     vm->next_gc = next_gc_start;
-    vm->stdout_buffer_size = stdout_buffer_size;
 
     if (stdout_buffer_size) {
       // forcing printf buffering for TTYs and terminals
@@ -342,6 +341,7 @@ int main(int argc, char *argv[]) {
 
     free_vm(vm);
     free(std_args);
+    free(vm);
     return EXIT_SUCCESS;
   }
 

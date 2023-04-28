@@ -285,4 +285,6 @@ DECLARE_NATIVE(instance_of);
 
 DECLARE_NATIVE(print);
 
+DECLARE_NATIVE(run_thread);
+
 #endif

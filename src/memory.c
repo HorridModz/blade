@@ -16,7 +16,7 @@
 void *allocate(b_vm *vm, size_t size) {
   vm->bytes_allocated += size;
 
-  if (vm->bytes_allocated > vm->next_gc) {
+  if (vm->thread == NULL && vm->bytes_allocated > vm->next_gc) {
     collect_garbage(vm);
   }
 
@@ -37,7 +37,7 @@ void *allocate(b_vm *vm, size_t size) {
 void *reallocate(b_vm *vm, void *pointer, size_t old_size, size_t new_size) {
   vm->bytes_allocated += new_size - old_size;
 
-  if (new_size > old_size && vm->bytes_allocated > vm->next_gc) {
+  if (vm->thread == NULL && new_size > old_size && vm->bytes_allocated > vm->next_gc) {
     collect_garbage(vm);
   }
 
@@ -329,17 +329,20 @@ static void mark_roots(b_vm *vm) {
        up_value = up_value->next) {
     mark_object(vm, (b_obj *) up_value);
   }
-  mark_table(vm, &vm->globals);
-  mark_table(vm, &vm->modules);
 
-  mark_table(vm, &vm->methods_string);
-  mark_table(vm, &vm->methods_bytes);
-  mark_table(vm, &vm->methods_file);
-  mark_table(vm, &vm->methods_list);
-  mark_table(vm, &vm->methods_dict);
-  mark_table(vm, &vm->methods_range);
+  if(vm->thread == NULL) {
+    mark_table(vm, &vm->globals);
+    mark_table(vm, &vm->modules);
 
-  mark_object(vm, (b_obj*)vm->exception_class);
+    mark_table(vm, &vm->methods_string);
+    mark_table(vm, &vm->methods_bytes);
+    mark_table(vm, &vm->methods_file);
+    mark_table(vm, &vm->methods_list);
+    mark_table(vm, &vm->methods_dict);
+    mark_table(vm, &vm->methods_range);
+
+    mark_object(vm, (b_obj *) vm->exception_class);
+  }
   mark_compiler_roots(vm);
 }
 

@@ -337,6 +337,7 @@ static void init_builtin_functions(b_vm *vm) {
   DEFINE_NATIVE(to_number);
   DEFINE_NATIVE(to_string);
   DEFINE_NATIVE(typeof);
+  DEFINE_NATIVE(run_thread);
 }
 
 static void init_builtin_methods(b_vm *vm) {
@@ -495,6 +496,9 @@ static void init_builtin_methods(b_vm *vm) {
 void init_vm(b_vm *vm) {
 
   reset_stack(vm);
+  vm->next = NULL;
+  vm->thread = NULL;
+
   vm->compiler = NULL;
   vm->objects = NULL;
   vm->exception_class = NULL;
@@ -517,8 +521,6 @@ void init_vm(b_vm *vm) {
   vm->std_args = NULL;
   vm->std_args_count = 0;
 
-  vm->stdout_buffer_size = 0L;
-
   init_table(&vm->modules);
   init_table(&vm->strings);
   init_table(&vm->globals);
@@ -535,19 +537,74 @@ void init_vm(b_vm *vm) {
   init_builtin_methods(vm);
 }
 
-void free_vm(b_vm *vm) {
-  free_objects(vm);
-  // since object in module can exist in globals
-  // it must come before
-  free_table(vm, &vm->modules);
-  free_table(vm, &vm->globals);
-  free_table(vm, &vm->strings);
+b_vm *create_child_vm(b_vm *vm, thrd_t *thread) {
+  b_vm *child_vm = (b_vm *) malloc(sizeof(b_vm));
+  if(child_vm) {
+    reset_stack(child_vm);
 
-  free_table(vm, &vm->methods_string);
-  free_table(vm, &vm->methods_list);
-  free_table(vm, &vm->methods_dict);
-  free_table(vm, &vm->methods_file);
-  free_table(vm, &vm->methods_bytes);
+    child_vm->thread = thread;
+    child_vm->next = vm->next;
+    vm->next = child_vm;
+
+    child_vm->compiler = NULL;
+    child_vm->objects = NULL;
+    child_vm->exception_class = vm->exception_class;
+    child_vm->current_frame = NULL;
+    child_vm->root_file = vm->root_file;
+    child_vm->bytes_allocated = 0;
+    child_vm->gc_protected = 0;
+    child_vm->next_gc = DEFAULT_GC_START; // default is 1mb. Can be modified via the -g flag.
+    child_vm->is_repl = vm->is_repl;
+    child_vm->mark_value = true;
+    child_vm->show_warnings = vm->show_warnings;
+    child_vm->should_debug_stack = vm->should_debug_stack;
+    child_vm->should_print_bytecode = vm->should_print_bytecode;
+    child_vm->should_exit_after_bytecode = vm->should_exit_after_bytecode;
+
+    child_vm->gray_count = 0;
+    child_vm->gray_capacity = 0;
+    child_vm->gray_stack = NULL;
+
+    child_vm->std_args = vm->std_args;
+    child_vm->std_args_count = vm->std_args_count;
+
+    child_vm->modules = vm->modules;
+    child_vm->strings = vm->strings;
+    child_vm->globals = vm->globals;
+
+    // object methods tables
+    child_vm->methods_string = vm->methods_string;
+    child_vm->methods_list = vm->methods_list;
+    child_vm->methods_dict = vm->methods_dict;
+    child_vm->methods_file = vm->methods_file;
+    child_vm->methods_bytes = vm->methods_bytes;
+    child_vm->methods_range = vm->methods_range;
+  }
+
+  return child_vm;
+}
+
+void free_vm(b_vm *vm) {
+  b_vm *next_vm = vm->next;
+  while(next_vm != NULL) {
+    thrd_join(*next_vm->thread, 0);
+    next_vm = next_vm->next;
+  }
+
+  free_objects(vm);
+  if(vm->thread == NULL) {
+    // since object in module can exist in globals
+    // it must come before
+    free_table(vm, &vm->modules);
+    free_table(vm, &vm->globals);
+    free_table(vm, &vm->strings);
+
+    free_table(vm, &vm->methods_string);
+    free_table(vm, &vm->methods_list);
+    free_table(vm, &vm->methods_dict);
+    free_table(vm, &vm->methods_file);
+    free_table(vm, &vm->methods_bytes);
+  }
 }
 
 static bool call(b_vm *vm, b_obj_closure *closure, int arg_count) {
@@ -2487,6 +2544,18 @@ b_ptr_result run(b_vm *vm) {
 #undef BINARY_MOD_OP
 }
 
+b_ptr_result interpret_function(b_vm *vm, b_obj_func *function) {
+  push(vm, OBJ_VAL(function));
+  b_obj_closure *closure = new_closure(vm, function);
+  pop(vm);
+  push(vm, OBJ_VAL(closure));
+  call(vm, closure, 0);
+
+  b_ptr_result result = run(vm);
+
+  return result;
+}
+
 b_ptr_result interpret(b_vm *vm, b_obj_module *module, const char *source) {
   b_blob blob;
   init_blob(&blob);
@@ -2506,15 +2575,7 @@ b_ptr_result interpret(b_vm *vm, b_obj_module *module, const char *source) {
     return PTR_COMPILE_ERR;
   }
 
-  push(vm, OBJ_VAL(function));
-  b_obj_closure *closure = new_closure(vm, function);
-  pop(vm);
-  push(vm, OBJ_VAL(closure));
-  call(vm, closure, 0);
-
-  b_ptr_result result = run(vm);
-
-  return result;
+  return interpret_function(vm, function);
 }
 
 #undef ERR_CANT_ASSIGN_EMPTY
