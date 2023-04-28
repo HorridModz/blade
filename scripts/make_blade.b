@@ -41,7 +41,8 @@ var header_list = [
   'vm',
   'memory',
   'native',
-  'module'
+  'module',
+  'threads'
 ]
 
 var processed = []  # files processed

@@ -1,5 +1,0 @@
-add_library(threads OBJECT threads.c threads.h)
-target_include_directories(threads INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
-if(HAVE_TIMESPEC_GET)
-    target_compile_definitions(threads PRIVATE -DHAVE_TIMESPEC_GET)
-endif()

@@ -587,7 +587,9 @@ b_vm *create_child_vm(b_vm *vm, thrd_t *thread) {
 void free_vm(b_vm *vm) {
   b_vm *next_vm = vm->next;
   while(next_vm != NULL) {
-    thrd_join(*next_vm->thread, 0);
+    if(*next_vm->thread) {
+      thrd_join(*next_vm->thread, 0);
+    }
     next_vm = next_vm->next;
   }
 

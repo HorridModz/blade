@@ -21,7 +21,7 @@
 # include <sdkddkver.h>
 # include <ws2tcpip.h>
 # include <winsock2.h>
-# include <bunistd.h>
+#include <windows.h>
 
 # define sleep			_sleep
 # ifndef strcasecmp

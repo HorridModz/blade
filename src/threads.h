@@ -66,6 +66,8 @@ enum {
 #include <errno.h>
 #include <process.h>  // MSVCRT
 #include <stdlib.h>
+#include <winsock2.h>
+#include <synchapi.h>
 
 /*
 Configuration macro:
@@ -435,7 +437,9 @@ static inline int thrd_join(thrd_t thr, int *res) {
     }
     *res = (int)code;
   }
+#ifndef DEBUG
   CloseHandle(thr);
+#endif
   return thrd_success;
 }
 
