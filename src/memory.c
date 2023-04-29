@@ -386,6 +386,7 @@ void free_objects(b_vm *vm) {
 
   free(vm->gray_stack);
   vm->gray_stack = NULL;
+  vm->next = NULL;
 }
 
 void collect_garbage(b_vm *vm) {
@@ -394,14 +395,20 @@ void collect_garbage(b_vm *vm) {
   size_t before = vm->bytes_allocated;
 #endif
 
-  b_vm *next_vm = vm;
-  while((next_vm = next_vm->next) != NULL) {
-    mark_roots(next_vm);
-    trace_references(next_vm);
-    sweep(next_vm);
+  b_vm *next_vm = vm->next;
+  while(next_vm != NULL) {
+    b_vm *next = next_vm->next;
 
-    next_vm->next_gc = (size_t)((double)next_vm->bytes_allocated * GC_HEAP_GROWTH_FACTOR);
-    next_vm->mark_value = !next_vm->mark_value;
+    if(next->bytes_allocated >= next_vm->next_gc) {
+      mark_roots(next_vm);
+      trace_references(next_vm);
+      sweep(next_vm);
+
+      next_vm->next_gc = (size_t) ((double) next_vm->bytes_allocated * GC_HEAP_GROWTH_FACTOR);
+      next_vm->mark_value = !next_vm->mark_value;
+    }
+
+    next_vm = next;
   }
 
   mark_roots(vm);

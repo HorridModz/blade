@@ -585,18 +585,13 @@ b_vm *create_child_vm(b_vm *vm, pthread_t *thread) {
 }
 
 void free_vm(b_vm *vm) {
-  b_vm *next_vm = vm->next;
-  while(next_vm != NULL) {
-    if(next_vm->thread) {
-      pthread_cancel(*next_vm->thread);
-      b_vm *tmp = next_vm;
-      next_vm = next_vm->next;
-      free_vm(next_vm);
-    } else {
-      next_vm = next_vm->next;
-    }
+  if(vm->next != NULL) {
+    free_vm(vm->next);
   }
 
+  if(vm->thread) {
+    pthread_kill(*vm->thread, SIGABRT);
+  }
   free_objects(vm);
   if(vm->thread == NULL) {
     // since object in module can exist in globals
