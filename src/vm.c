@@ -589,10 +589,12 @@ void free_vm(b_vm *vm) {
   while(next_vm != NULL) {
     if(next_vm->thread) {
       pthread_cancel(*next_vm->thread);
+      b_vm *tmp = next_vm;
+      next_vm = next_vm->next;
+      free_vm(next_vm);
+    } else {
+      next_vm = next_vm->next;
     }
-    b_vm *tmp = next_vm;
-    next_vm = next_vm->next;
-    free_vm(tmp);
   }
 
   free_objects(vm);

@@ -846,12 +846,13 @@ typedef struct {
   b_obj_func *function;
 } b_thread_arg;
 
-void *b_thrd_function(void *data) {
+void *b_thread_function(void *data) {
   b_thread_arg *thread = (b_thread_arg *)data;
   interpret_function(thread->vm, thread->function);
   thread->function->obj.stale = false;
   thread->function->module->obj.stale = false;
   free(thread->vm->thread);
+  thread->vm->thread = NULL;
   free_vm(thread->vm);
   return NULL;
 }
@@ -877,11 +878,11 @@ DECLARE_NATIVE(run_thread) {
         fn->obj.stale = true;
         fn->module->obj.stale = true;
 
-        if(pthread_create(thread, NULL, b_thrd_function, thread_arg)) {
+        if(pthread_create(thread, NULL, b_thread_function, thread_arg)) {
           if(wait) {
             pthread_join(*thread, 0);
           } else {
-//            pthread_detach(*thread);
+            pthread_detach(*thread);
           }
         }
       }
