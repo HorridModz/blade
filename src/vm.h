@@ -8,7 +8,7 @@ typedef struct s_compiler b_compiler;
 #include "object.h"
 #include "table.h"
 #include "value.h"
-#include "threads.h"
+#include <pthread.h>
 
 typedef enum {
   PTR_OK,
@@ -81,11 +81,11 @@ struct s_vm {
 
   // miscellaneous
   b_vm *next;
-  thrd_t *thread;
+  pthread_t *thread;
 };
 
 void init_vm(b_vm *vm);
-b_vm *create_child_vm(b_vm *vm, thrd_t *thread);
+b_vm *create_child_vm(b_vm *vm, pthread_t *thread);
 
 void free_vm(b_vm *vm);
 

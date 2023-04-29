@@ -394,13 +394,23 @@ void collect_garbage(b_vm *vm) {
   size_t before = vm->bytes_allocated;
 #endif
 
+  b_vm *next_vm = vm;
+  while((next_vm = next_vm->next) != NULL) {
+    mark_roots(next_vm);
+    trace_references(next_vm);
+    sweep(next_vm);
+
+    next_vm->next_gc = (size_t)((double)next_vm->bytes_allocated * GC_HEAP_GROWTH_FACTOR);
+    next_vm->mark_value = !next_vm->mark_value;
+  }
+
   mark_roots(vm);
   trace_references(vm);
   table_remove_whites(vm, &vm->strings);
   table_remove_whites(vm, &vm->modules);
   sweep(vm);
 
-  vm->next_gc = vm->bytes_allocated * GC_HEAP_GROWTH_FACTOR;
+  vm->next_gc = (size_t)((double)vm->bytes_allocated * GC_HEAP_GROWTH_FACTOR);
   vm->mark_value = !vm->mark_value;
 
 #if defined(DEBUG_LOG_GC) && DEBUG_LOG_GC

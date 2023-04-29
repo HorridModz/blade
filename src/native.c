@@ -841,20 +841,19 @@ DECLARE_NATIVE(print) {
   RETURN;
 }
 
-#include "threads.h"
 typedef struct {
   b_vm *vm;
   b_obj_func *function;
 } b_thread_arg;
 
-int b_thrd_function(void *data) {
+void *b_thrd_function(void *data) {
   b_thread_arg *thread = (b_thread_arg *)data;
-  int result = interpret_function(thread->vm, thread->function) == PTR_OK ? 0 : 1;
+  interpret_function(thread->vm, thread->function);
   thread->function->obj.stale = false;
   thread->function->module->obj.stale = false;
   free(thread->vm->thread);
   free_vm(thread->vm);
-  return result;
+  return NULL;
 }
 
 DECLARE_NATIVE(run_thread) {
@@ -867,7 +866,7 @@ DECLARE_NATIVE(run_thread) {
     wait = AS_BOOL(args[1]);
   }
 
-  thrd_t *thread = ALLOCATE(thrd_t, 1);
+  pthread_t *thread = ALLOCATE(pthread_t, 1);
   if(thread) {
     b_vm *thread_vm = create_child_vm(vm, thread);
     if(thread_vm) {
@@ -878,11 +877,11 @@ DECLARE_NATIVE(run_thread) {
         fn->obj.stale = true;
         fn->module->obj.stale = true;
 
-        if(thrd_create(thread, b_thrd_function, thread_arg) == thrd_success) {
+        if(pthread_create(thread, NULL, b_thrd_function, thread_arg)) {
           if(wait) {
-            thrd_join(*thread, 0);
+            pthread_join(*thread, 0);
           } else {
-//            thrd_detach(*thread);
+//            pthread_detach(*thread);
           }
         }
       }

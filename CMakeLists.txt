@@ -151,6 +151,10 @@ set(SHARED_LIBRARY_NAME_END "${CMAKE_DEBUG_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX
 
 add_dependencies(libblade pcre2)
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+target_link_libraries(libblade PRIVATE Threads::Threads)
+
 set_target_properties(libblade
 		PROPERTIES
 		OUTPUT_NAME blade

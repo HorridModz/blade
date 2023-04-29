@@ -537,7 +537,7 @@ void init_vm(b_vm *vm) {
   init_builtin_methods(vm);
 }
 
-b_vm *create_child_vm(b_vm *vm, thrd_t *thread) {
+b_vm *create_child_vm(b_vm *vm, pthread_t *thread) {
   b_vm *child_vm = (b_vm *) malloc(sizeof(b_vm));
   if(child_vm) {
     reset_stack(child_vm);
@@ -587,10 +587,12 @@ b_vm *create_child_vm(b_vm *vm, thrd_t *thread) {
 void free_vm(b_vm *vm) {
   b_vm *next_vm = vm->next;
   while(next_vm != NULL) {
-    if(*next_vm->thread) {
-      thrd_join(*next_vm->thread, 0);
+    if(next_vm->thread) {
+      pthread_cancel(*next_vm->thread);
     }
+    b_vm *tmp = next_vm;
     next_vm = next_vm->next;
+    free_vm(tmp);
   }
 
   free_objects(vm);
