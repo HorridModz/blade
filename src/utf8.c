@@ -2120,7 +2120,7 @@ char *utf8_encode(unsigned int code) {
       return chars;
     }
   }
-  return (char *) "";
+  return NULL;
 }
 
 int utf8_decode(const uint8_t *bytes, uint32_t length) {
@@ -2254,7 +2254,7 @@ void utf8slice(char *s, int *start, int *end) {
 }
 
 char *utf8_toupper(char *s, int length) {
-  char *result = malloc(sizeof(char));
+  char *result = calloc(1, sizeof(char));
 
   if(result) {
     for (int i = 0; i < length; i++) {
@@ -2271,7 +2271,7 @@ char *utf8_toupper(char *s, int length) {
 }
 
 char *utf8_tolower(char *s, int length) {
-  char *result = malloc(sizeof(char));
+  char *result = calloc(1, sizeof(char));
 
   if(result) {
     for (int i = 0; i < length; i++) {
