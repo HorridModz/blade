@@ -10,10 +10,10 @@ typedef struct {
 } b_entry;
 
 typedef struct {
+  pthread_mutex_t lock;
   int count;
   int capacity;
   b_entry *entries;
-  pthread_mutex_t lock;
 } b_table;
 
 void init_table(b_table *table);

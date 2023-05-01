@@ -125,15 +125,15 @@ typedef struct {
 #endif
 
 typedef struct {
+  pthread_mutex_t lock;
   int capacity;
   int count;
-  pthread_mutex_t lock;
   b_value *values;
 } b_value_arr;
 
 typedef struct {
-  int count;
   pthread_mutex_t lock;
+  int count;
   unsigned char *bytes;
 } b_byte_arr;
 
