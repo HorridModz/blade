@@ -192,13 +192,13 @@ void table_import_all(b_vm *vm, b_table *from, b_table *to) {
   pthread_mutex_unlock(&from->lock);
 }
 
-void table_copy(b_vm *vm, b_table *from, b_table *to) {
+void table_copy(b_vm *vm, b_vm_thread *th, b_table *from, b_table *to) {
   pthread_mutex_lock(&from->lock);
 
   for (int i = 0; i < from->capacity; i++) {
     b_entry *entry = &from->entries[i];
     if (!IS_EMPTY(entry->key)) {
-      table_set(vm, to, entry->key, copy_value(vm, entry->value));
+      table_set(vm, to, entry->key, copy_value(vm, th, entry->value));
     }
   }
 
@@ -253,9 +253,9 @@ b_value table_find_key(b_table *table, b_value value) {
   return NIL_VAL;
 }
 
-b_obj_list *table_get_keys(b_vm *vm, b_table *table) {
+b_obj_list *table_get_keys(b_vm *vm, b_vm_thread *th, b_table *table) {
   pthread_mutex_lock(&table->lock);
-  b_obj_list *list = (b_obj_list *)GC(new_list(vm));
+  b_obj_list *list = (b_obj_list *)GC(new_list(vm, th));
 
   for (int i = 0; i < table->capacity; i++) {
     b_entry *entry = &table->entries[i];

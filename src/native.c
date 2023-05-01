@@ -21,7 +21,7 @@
 #include <basetsd.h>
 #endif
 
-static b_obj_string *bin_to_string(b_vm *vm, long n) {
+static b_obj_string *bin_to_string(b_vm *vm, b_vm_thread *th, long n) {
 
   char str[1024]; // assume maximum of 1024 bits
   int count = 0;
@@ -51,7 +51,7 @@ static b_obj_string *bin_to_string(b_vm *vm, long n) {
 
   new_str[length++] = 0;
 
-  return copy_string(vm, new_str, length);
+  return copy_string(vm, th, new_str, length);
 
 //  // To store the binary number
 //  long long number = 0;
@@ -72,18 +72,18 @@ static b_obj_string *bin_to_string(b_vm *vm, long n) {
 //  return copy_string(vm, str, length);
 }
 
-static b_obj_string *number_to_oct(b_vm *vm, long long n, bool numeric) {
+static b_obj_string *number_to_oct(b_vm *vm, b_vm_thread *th, long long n, bool numeric) {
   char str[66]; // assume maximum of 64 bits + 2 octal indicators (0c)
   int length = sprintf(str, numeric ? "0c%llo" : "%llo", n);
 
-  return copy_string(vm, str, length);
+  return copy_string(vm, th, str, length);
 }
 
-static b_obj_string *number_to_hex(b_vm *vm, long long n, bool numeric) {
+static b_obj_string *number_to_hex(b_vm *vm, b_vm_thread *th, long long n, bool numeric) {
   char str[66]; // assume maximum of 64 bits + 2 hex indicators (0x)
   int length = sprintf(str, numeric ? "0x%llx" : "%llx", n);
 
-  return copy_string(vm, str, length);
+  return copy_string(vm, th, str, length);
 }
 
 /**
@@ -322,7 +322,7 @@ DECLARE_NATIVE(bin) {
   METHOD_OVERRIDE(to_bin, 6);
 
   ENFORCE_ARG_TYPE(bin, 0, IS_NUMBER);
-  RETURN_OBJ(bin_to_string(vm, AS_NUMBER(args[0])));
+  RETURN_OBJ(bin_to_string(vm, th, AS_NUMBER(args[0])));
 }
 
 /**
@@ -340,7 +340,7 @@ DECLARE_NATIVE(oct) {
   METHOD_OVERRIDE(to_oct, 6);
 
   ENFORCE_ARG_TYPE(oct, 0, IS_NUMBER);
-  RETURN_OBJ(number_to_oct(vm, AS_NUMBER(args[0]), false));
+  RETURN_OBJ(number_to_oct(vm, th, AS_NUMBER(args[0]), false));
 }
 
 /**
@@ -358,7 +358,7 @@ DECLARE_NATIVE(hex) {
   METHOD_OVERRIDE(to_hex, 6);
 
   ENFORCE_ARG_TYPE(hex, 0, IS_NUMBER);
-  RETURN_OBJ(number_to_hex(vm, AS_NUMBER(args[0]), false));
+  RETURN_OBJ(number_to_hex(vm, th, AS_NUMBER(args[0]), false));
 }
 
 /**
@@ -467,12 +467,12 @@ DECLARE_NATIVE(to_list) {
     RETURN_VALUE(args[0]);
   }
 
-  b_obj_list *list = (b_obj_list *) GC(new_list(vm));
+  b_obj_list *list = (b_obj_list *) GC(new_list(vm, th));
 
   if (IS_DICT(args[0])) {
     b_obj_dict *dict = AS_DICT(args[0]);
     for (int i = 0; i < dict->names.count; i++) {
-      b_obj_list *n_list = (b_obj_list *) GC(new_list(vm));
+      b_obj_list *n_list = (b_obj_list *) GC(new_list(vm, th));
       write_value_arr(vm, &n_list->items, dict->names.values[i]);
 
       b_value value;
@@ -523,7 +523,7 @@ DECLARE_NATIVE(to_dict) {
     RETURN_VALUE(args[0]);
   }
 
-  b_obj_dict *dict = (b_obj_dict *) GC(new_dict(vm));
+  b_obj_dict *dict = (b_obj_dict *) GC(new_dict(vm, th));
   dict_set_entry(vm, dict, NUMBER_VAL(0), args[0]);
 
   RETURN_OBJ(dict);
@@ -844,16 +844,15 @@ DECLARE_NATIVE(print) {
 typedef struct {
   b_vm *vm;
   b_obj_func *function;
+  b_vm_thread *thread;
 } b_thread_arg;
 
 void *b_thread_function(void *data) {
   b_thread_arg *thread = (b_thread_arg *)data;
-  interpret_function(thread->vm, thread->function);
-  thread->function->obj.stale = false;
-  thread->function->module->obj.stale = false;
-  free(thread->vm->thread);
-  thread->vm->thread = NULL;
-  free_vm(thread->vm);
+  interpret_function(thread->vm, thread->function, thread->thread);
+//  thread->function->obj.stale = false;
+//  thread->function->module->obj.stale = false;
+  thread->thread->th = NULL;
   return NULL;
 }
 
@@ -869,14 +868,15 @@ DECLARE_NATIVE(run_thread) {
 
   pthread_t *thread = ALLOCATE(pthread_t, 1);
   if(thread) {
-    b_vm *thread_vm = create_child_vm(vm, thread);
-    if(thread_vm) {
+    b_vm_thread *vm_thread = new_vm_thread(vm, thread, th);
+    if(vm_thread) {
       b_thread_arg *thread_arg = ALLOCATE(b_thread_arg, 1);
       if(thread_arg) {
-        thread_arg->vm = thread_vm;
         thread_arg->function = fn;
-        fn->obj.stale = true;
-        fn->module->obj.stale = true;
+        thread_arg->thread = vm_thread;
+        thread_arg->vm = vm;
+//        fn->obj.stale = true;
+//        fn->module->obj.stale = true;
 
         if(pthread_create(thread, NULL, b_thread_function, thread_arg)) {
           if(wait) {

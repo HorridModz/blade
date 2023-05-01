@@ -11,23 +11,22 @@
 #include "pcre2/pcre2.h"
 
 #define DECLARE_NATIVE(name)                                                   \
-  bool native_fn_##name(b_vm *vm, int arg_count, b_value *args)
+  bool native_fn_##name(b_vm *vm, b_vm_thread *th, int arg_count, b_value *args)
 
 #define DECLARE_METHOD(name)                                                   \
-  bool native_method_##name(b_vm *vm, int arg_count, b_value *args)
+  bool native_method_##name(b_vm *vm, b_vm_thread *th, int arg_count, b_value *args)
 
 #define DECLARE_MODULE_METHOD(name)                                            \
-  bool native_module_##name(b_vm *vm, int arg_count, b_value *args)
+  bool native_module_##name(b_vm *vm, b_vm_thread *th, int arg_count, b_value *args)
 
 #define GET_NATIVE(name) native_fn_##name
 #define GET_METHOD(name) native_method_##name
 #define GET_MODULE_METHOD(name) native_module_##name
 
-#define DEFINE_NATIVE(name) define_native(vm, #name, GET_NATIVE(name))
+#define DEFINE_NATIVE(name) define_native(vm, th, #name, GET_NATIVE(name))
 
 #define DEFINE_METHOD(table, name)                                             \
-  define_native_method(vm, &vm->methods_##table, #name,                        \
-                       native_method_##table##name)
+  define_native_method(vm, th, &vm->methods_##table, #name, native_method_##table##name)
 
 // NOTE: METHOD_OBJECT must always be retrieved
 // before any call to create an object in a native function.
@@ -57,8 +56,8 @@
 #define RETURN_EMPTY do  { args[-1] = NIL_VAL; return false; } while(0)
 #define RETURN_ERROR(...)                                                      \
   do {                                                                            \
-    pop_n(vm, arg_count); \
-    throw_exception(vm, ##__VA_ARGS__);                                        \
+    pop_n(th, arg_count); \
+    throw_exception(__VA_ARGS__);                                        \
     args[-1] = FALSE_VAL; \
     return false;                                                          \
   } while(0)
@@ -67,11 +66,11 @@
 #define RETURN_FALSE do { args[-1] = FALSE_VAL; return true; } while(0)
 #define RETURN_NUMBER(v) do { args[-1] = NUMBER_VAL(v); return true; } while(0)
 #define RETURN_OBJ(v) do { args[-1] = OBJ_VAL(v); return true; } while(0)
-#define RETURN_PTR(v) do { args[-1] = OBJ_VAL(new_ptr(vm, (void*)(v))); return true; } while(0)
-#define RETURN_STRING(v) do { args[-1] = OBJ_VAL(copy_string(vm, v, (int)strlen(v))); return true; } while(0)
-#define RETURN_L_STRING(v, l) do { args[-1] = OBJ_VAL(copy_string(vm, v, l)); return true; } while(0)
-#define RETURN_T_STRING(v, l) do { args[-1] = OBJ_VAL(take_string(vm, v, l)); return true; } while(0)
-#define RETURN_TT_STRING(v) do { args[-1] = OBJ_VAL(take_string(vm, v, (int)strlen(v))); return true; } while(0)
+#define RETURN_PTR(v) do { args[-1] = OBJ_VAL(new_ptr(vm, th, (void*)(v))); return true; } while(0)
+#define RETURN_STRING(v) do { args[-1] = OBJ_VAL(copy_string(vm, th, v, (int)strlen(v))); return true; } while(0)
+#define RETURN_L_STRING(v, l) do { args[-1] = OBJ_VAL(copy_string(vm, th, v, l)); return true; } while(0)
+#define RETURN_T_STRING(v, l) do { args[-1] = OBJ_VAL(take_string(vm, th, v, l)); return true; } while(0)
+#define RETURN_TT_STRING(v) do { args[-1] = OBJ_VAL(take_string(vm, th, v, (int)strlen(v))); return true; } while(0)
 #define RETURN_VALUE(v) do { args[-1] = v; return true; } while(0)
 
 #define WARN(...) do { \
@@ -138,10 +137,10 @@
     if (IS_INSTANCE(args[0])) {                                                \
       b_obj_instance *instance = AS_INSTANCE(args[0]);                         \
       b_value _tmp;                                                            \
-      b_obj_string *name = (b_obj_string *)GC(copy_string(vm, "@" #override, (i) + 1)); \
+      b_obj_string *name = (b_obj_string *)GC(copy_string(vm, th, "@" #override, (i) + 1)); \
       if(table_get(&instance->klass->methods, OBJ_VAL(name), &_tmp)) {         \
         CLEAR_GC(); \
-        if (invoke_from_class(vm, instance->klass, name, 0)) {               \
+        if (invoke_from_class(vm, th, instance->klass, name, 0)) {               \
           args[-1] = TRUE_VAL;                                                   \
           return false; \
         }                                                                        \
@@ -190,10 +189,10 @@
   }
 
 
-#define GC_STRING(o) OBJ_VAL(GC(copy_string(vm, (o), (int)strlen(o))))
-#define GC_L_STRING(o, l) OBJ_VAL(GC(copy_string(vm, (o), (l))))
-#define GC_T_STRING(o, l) OBJ_VAL(GC(take_string(vm, (o), (l))))
-#define GC_TT_STRING(o) OBJ_VAL(GC(take_string(vm, (o), (int)strlen(o))))
+#define GC_STRING(o) OBJ_VAL(GC(copy_string(vm, th, (o), (int)strlen(o))))
+#define GC_L_STRING(o, l) OBJ_VAL(GC(copy_string(vm, th, (o), (l))))
+#define GC_T_STRING(o, l) OBJ_VAL(GC(take_string(vm, th, (o), (l))))
+#define GC_TT_STRING(o) OBJ_VAL(GC(take_string(vm, th, (o), (int)strlen(o))))
 
 extern uint32_t is_regex(b_obj_string *string);
 
@@ -201,7 +200,7 @@ extern char *remove_regex_delimiter(b_vm *vm, b_obj_string *string);
 
 extern void write_list(b_vm *vm, b_obj_list *list, b_value value);
 
-extern b_obj_list *copy_list(b_vm *vm, b_obj_list *list, int start, int length);
+extern b_obj_list *copy_list(b_vm *vm, b_vm_thread *th, b_obj_list *list, int start, int length);
 
 DECLARE_NATIVE(time);
 

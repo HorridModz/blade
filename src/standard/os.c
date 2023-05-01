@@ -109,7 +109,7 @@ DECLARE_MODULE_METHOD(os_info) {
     RETURN_ERROR("could not access os information");
   }
 
-  b_obj_dict *dict = (b_obj_dict*)GC(new_dict(vm));
+  b_obj_dict *dict = (b_obj_dict*)GC(new_dict(vm, th));
 
   dict_add_entry(vm, dict, GC_L_STRING("sysname", 7), GC_STRING(os.sysname));
   dict_add_entry(vm, dict, GC_L_STRING("nodename", 8), GC_STRING(os.nodename));
@@ -130,7 +130,7 @@ DECLARE_MODULE_METHOD(os_sleep) {
   RETURN;
 }
 
-b_value get_os_platform(b_vm *vm) {
+b_value get_os_platform(b_vm *vm, b_vm_thread *th) {
 
 #if defined(_WIN32)
 #define PLATFORM_NAME "windows" // Windows
@@ -179,8 +179,8 @@ b_value get_os_platform(b_vm *vm) {
 #undef PLATFORM_NAME
 }
 
-b_value get_blade_os_args(b_vm *vm) {
-  b_obj_list *list = (b_obj_list*)GC(new_list(vm));
+b_value get_blade_os_args(b_vm *vm, b_vm_thread *th) {
+  b_obj_list *list = (b_obj_list*)GC(new_list(vm, th));
   if(vm->std_args != NULL) {
     for(int i = 0; i < vm->std_args_count; i++) {
       write_list(vm, list, STRING_VAL(vm->std_args[i]));
@@ -190,11 +190,11 @@ b_value get_blade_os_args(b_vm *vm) {
   return OBJ_VAL(list);
 }
 
-b_value get_blade_os_path_separator(b_vm *vm) {
+b_value get_blade_os_path_separator(b_vm *vm, b_vm_thread *th) {
   return STRING_L_VAL(BLADE_PATH_SEPARATOR, 1);
 }
 
-b_value get_blade_os_exe_path(b_vm *vm) {
+b_value get_blade_os_exe_path(b_vm *vm, b_vm_thread *th) {
   char *path = get_exe_path();
   return STRING_VAL(path);
 }
@@ -316,7 +316,7 @@ DECLARE_MODULE_METHOD(os__readdir) {
 
   DIR *dir;
   if((dir = opendir(path->chars)) != NULL) {
-    b_obj_list *list = (b_obj_list *)GC(new_list(vm));
+    b_obj_list *list = (b_obj_list *)GC(new_list(vm, th));
     struct dirent *ent;
     while((ent = readdir(dir)) != NULL) {
       write_list(vm, list, STRING_VAL(ent->d_name));
@@ -475,39 +475,39 @@ DECLARE_MODULE_METHOD(os__basename) {
 
 /** DIR TYPES BEGIN */
 
-b_value __os_dir_DT_UNKNOWN(b_vm *vm){
+b_value __os_dir_DT_UNKNOWN(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(DT_UNKNOWN);
 }
 
-b_value __os_dir_DT_REG(b_vm *vm){
+b_value __os_dir_DT_REG(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(DT_REG);
 }
 
-b_value __os_dir_DT_DIR(b_vm *vm){
+b_value __os_dir_DT_DIR(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(DT_DIR);
 }
 
-b_value __os_dir_DT_FIFO(b_vm *vm){
+b_value __os_dir_DT_FIFO(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(DT_FIFO);
 }
 
-b_value __os_dir_DT_SOCK(b_vm *vm){
+b_value __os_dir_DT_SOCK(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(DT_SOCK);
 }
 
-b_value __os_dir_DT_CHR(b_vm *vm){
+b_value __os_dir_DT_CHR(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(DT_CHR);
 }
 
-b_value __os_dir_DT_BLK(b_vm *vm) {
+b_value __os_dir_DT_BLK(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(DT_BLK);
 }
 
-b_value __os_dir_DT_LNK(b_vm *vm) {
+b_value __os_dir_DT_LNK(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(DT_LNK);
 }
 
-b_value __os_dir_DT_WHT(b_vm *vm) {
+b_value __os_dir_DT_WHT(b_vm *vm, b_vm_thread *th) {
 #ifdef DT_WHT
   return NUMBER_VAL(DT_WHT);
 #else

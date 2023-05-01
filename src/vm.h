@@ -29,16 +29,23 @@ typedef struct {
   b_exception_frame handlers[MAX_EXCEPTION_HANDLERS];
 } b_call_frame;
 
-struct s_vm {
-  b_call_frame frames[FRAMES_MAX];
-  b_call_frame *current_frame;
+struct s_vm_thread {
+  pthread_mutex_t lock;
+  int gc_protected;
   int frame_count;
+  b_value *stack_top;
+  b_obj_up_value *open_up_values;
+  pthread_t *th;
+  b_vm_thread *next;
+  b_value stack[STACK_MAX];
+  b_call_frame frames[FRAMES_MAX];
+};
+
+struct s_vm {
+  b_call_frame *current_frame;
 
   b_blob *blob;
   uint8_t *ip;
-  b_value stack[STACK_MAX];
-  b_value *stack_top;
-  b_obj_up_value *open_up_values;
 
   b_obj *objects;
   b_compiler *compiler;
@@ -48,7 +55,6 @@ struct s_vm {
   // gc
   int gray_count;
   int gray_capacity;
-  int gc_protected;
   b_obj **gray_stack;
   size_t bytes_allocated;
   size_t next_gc;
@@ -79,29 +85,24 @@ struct s_vm {
   bool should_exit_after_bytecode;
 
   // miscellaneous
-  b_vm *next;
-  pthread_t *thread;
+  b_vm_thread *thread;
 };
 
 void init_vm(b_vm *vm);
-b_vm *create_child_vm(b_vm *vm, pthread_t *thread);
 
 void free_vm(b_vm *vm);
 
-b_ptr_result interpret_function(b_vm *vm, b_obj_func *function);
+b_ptr_result interpret_function(b_vm *vm, b_obj_func *function, b_vm_thread *thread);
 b_ptr_result interpret(b_vm *vm, b_obj_module *module, const char *source);
 
-void push(b_vm *vm, b_value value);
+void push(b_vm_thread *th, b_value value);
+b_value pop(b_vm_thread *th);
+b_value pop_n(b_vm_thread *th, int n);
+b_value peek(b_vm_thread *th, int distance);
 
-b_value pop(b_vm *vm);
-
-b_value pop_n(b_vm *vm, int n);
-
-b_value peek(b_vm *vm, int distance);
-
-static inline void add_module(b_vm *vm, b_obj_module *module) {
+static inline void add_module(b_vm *vm, b_vm_thread *th, b_obj_module *module) {
   table_set(vm, &vm->modules, STRING_VAL(module->file), OBJ_VAL(module));
-  if (vm->frame_count == 0) {
+  if (th->frame_count == 0) {
     table_set(vm, &vm->globals, STRING_VAL(module->name), OBJ_VAL(module));
   } else {
     table_set(vm,
@@ -111,7 +112,7 @@ static inline void add_module(b_vm *vm, b_obj_module *module) {
   }
 }
 
-bool invoke_from_class(b_vm *vm, b_obj_class *klass, b_obj_string *name, int arg_count);
+bool invoke_from_class(b_vm *vm, b_vm_thread *th, b_obj_class *klass, b_obj_string *name, int arg_count);
 
 bool is_false(b_value value);
 
@@ -121,37 +122,36 @@ bool dict_get_entry(b_obj_dict *dict, b_value key, b_value *value);
 
 bool dict_set_entry(b_vm *vm, b_obj_dict *dict, b_value key, b_value value);
 
-void define_native_method(b_vm *vm, b_table *table, const char *name,
-                          b_native_fn function);
+void define_native_method(b_vm *vm, b_vm_thread *th, b_table *table, const char *name, b_native_fn function);
 
 bool is_instance_of(b_obj_class *klass1, char *klass2_name);
 
-bool do_throw_exception(b_vm *vm, bool is_assert, const char *format, ...);
+bool do_throw_exception(b_vm *vm, b_vm_thread *th, bool is_assert, const char *format, ...);
 
-void do_runtime_error(b_vm *vm, const char *format, ...);
+void do_runtime_error(b_vm *vm, b_vm_thread *th, const char *format, ...);
 
-b_obj_instance *create_exception(b_vm *vm, b_obj_string *message);
+b_obj_instance *create_exception(b_vm *vm, b_vm_thread *th, b_obj_string *message);
 
 #define EXIT_VM() return PTR_RUNTIME_ERR
 
 #define runtime_error(...)                                                     \
-  if(!throw_exception(vm, ##__VA_ARGS__)){                                     \
+  if(!throw_exception(__VA_ARGS__)){                                     \
     EXIT_VM(); \
   }
 
-#define throw_exception(v, ...) do_throw_exception(v, false, ##__VA_ARGS__)
+#define throw_exception(...) do_throw_exception(vm, th, false, ##__VA_ARGS__)
 
-static inline b_obj *gc_protect(b_vm *vm, b_obj *object) {
-  push(vm, OBJ_VAL(object));
-  vm->gc_protected++;
+static inline b_obj *gc_protect(b_vm_thread *th, b_obj *object) {
+  push(th, OBJ_VAL(object));
+  th->gc_protected++;
   return object;
 }
 
-static inline void gc_clear_protection(b_vm *vm) {
-  if (vm->gc_protected > 0) {
-    vm->stack_top -= vm->gc_protected;
+static inline void gc_clear_protection(b_vm_thread *th) {
+  if (th->gc_protected > 0) {
+    th->stack_top -= th->gc_protected;
   }
-  vm->gc_protected = 0;
+  th->gc_protected = 0;
 }
 
 // NOTE:
@@ -162,7 +162,10 @@ static inline void gc_clear_protection(b_vm *vm) {
 // native functions.
 // NOTE as well that METHOD_OBJECT must be retrieved before any call
 // to GC() in a native function.
-#define GC(o) gc_protect(vm, (b_obj*)(o))
-#define CLEAR_GC() gc_clear_protection(vm)
+#define GC(o) gc_protect(th, (b_obj*)(o))
+#define CLEAR_GC() gc_clear_protection(th)
+
+b_vm_thread * new_vm_thread(b_vm *vm, pthread_t *th, b_vm_thread *next);
+void free_vm_thread(b_vm_thread *thread);
 
 #endif

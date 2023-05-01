@@ -7,10 +7,10 @@
 DECLARE_NATIVE(bytes) {
   ENFORCE_ARG_COUNT(bytes, 1);
   if (IS_NUMBER(args[0])) {
-    RETURN_OBJ(new_bytes(vm, (int) AS_NUMBER(args[0])));
+    RETURN_OBJ(new_bytes(vm, th, (int) AS_NUMBER(args[0])));
   } else if (IS_LIST(args[0])) {
     b_obj_list *list = AS_LIST(args[0]);
-    b_obj_bytes *bytes = (b_obj_bytes *) GC(new_bytes(vm, list->items.count));
+    b_obj_bytes *bytes = (b_obj_bytes *) GC(new_bytes(vm, th, list->items.count));
 
     for (int i = 0; i < list->items.count; i++) {
       if (IS_NUMBER(list->items.values[i])) {
@@ -84,7 +84,7 @@ DECLARE_BYTES_METHOD(append) {
 DECLARE_BYTES_METHOD(clone) {
   ENFORCE_ARG_COUNT(clone, 0);
   b_obj_bytes *bytes = AS_BYTES(METHOD_OBJECT);
-  b_obj_bytes *n_bytes = (b_obj_bytes *)GC(new_bytes(vm, bytes->bytes.count));
+  b_obj_bytes *n_bytes = (b_obj_bytes *)GC(new_bytes(vm, th, bytes->bytes.count));
 
   memcpy(n_bytes->bytes.bytes, bytes->bytes.bytes, bytes->bytes.count);
 
@@ -142,7 +142,7 @@ DECLARE_BYTES_METHOD(reverse) {
   ENFORCE_ARG_COUNT(reverse, 0);
   b_obj_bytes *bytes = AS_BYTES(METHOD_OBJECT);
 
-  b_obj_bytes *n_bytes = (b_obj_bytes *)GC(new_bytes(vm, bytes->bytes.count));
+  b_obj_bytes *n_bytes = (b_obj_bytes *)GC(new_bytes(vm, th, bytes->bytes.count));
 
   for (int i = 0; i < bytes->bytes.count; i++) {
     n_bytes->bytes.bytes[i] = bytes->bytes.bytes[bytes->bytes.count - i - 1];
@@ -158,9 +158,9 @@ DECLARE_BYTES_METHOD(split) {
   b_byte_arr object = AS_BYTES(METHOD_OBJECT)->bytes;
   b_byte_arr delimeter = AS_BYTES(args[0])->bytes;
 
-  if (object.count == 0 || delimeter.count > object.count) RETURN_OBJ(new_list(vm));
+  if (object.count == 0 || delimeter.count > object.count) RETURN_OBJ(new_list(vm, th));
 
-  b_obj_list *list = (b_obj_list *) GC(new_list(vm));
+  b_obj_list *list = (b_obj_list *) GC(new_list(vm, th));
 
   // main work here...
   if (delimeter.count > 0) {
@@ -168,7 +168,7 @@ DECLARE_BYTES_METHOD(split) {
     for(int i = 0; i <= object.count; i++) {
       // match found.
       if(memcmp(object.bytes + i, delimeter.bytes, delimeter.count) == 0 || i == object.count) {
-        b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, i - start));
+        b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, th, i - start));
         memcpy(bytes->bytes.bytes, object.bytes + start, i - start);
         write_list(vm, list, OBJ_VAL(bytes));
         i += delimeter.count - 1;
@@ -178,7 +178,7 @@ DECLARE_BYTES_METHOD(split) {
   } else {
     int length = object.count;
     for (int i = 0; i < length; i++) {
-      b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, 1));
+      b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, th, 1));
       memcpy(bytes->bytes.bytes, object.bytes + i, 1);
       write_list(vm, list, OBJ_VAL(bytes));
     }
@@ -293,7 +293,7 @@ DECLARE_BYTES_METHOD(dispose) {
 DECLARE_BYTES_METHOD(to_list) {
   ENFORCE_ARG_COUNT(to_list, 0);
   b_obj_bytes *bytes = AS_BYTES(METHOD_OBJECT);
-  b_obj_list *list = (b_obj_list *) GC(new_list(vm));
+  b_obj_list *list = (b_obj_list *) GC(new_list(vm, th));
 
   for (int i = 0; i < bytes->bytes.count; i++) {
     write_list(vm, list, NUMBER_VAL((double) ((int) bytes->bytes.bytes[i])));

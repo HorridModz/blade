@@ -46,11 +46,11 @@ b_module_init modules[] = {
     NULL,
 };
 
-bool load_module(b_vm *vm, b_module_init init_fn, char *import_name, char *source, void *handle) {
+bool load_module(b_vm *vm, b_vm_thread *th, b_module_init init_fn, char *import_name, char *source, void *handle) {
   b_module_reg *module = init_fn(vm);
 
   if(module != NULL) {
-    b_obj_module *the_module = (b_obj_module*)GC(new_module(vm, (char *)module->name, source));
+    b_obj_module *the_module = (b_obj_module*)GC(new_module(vm, th, (char *)module->name, source));
     the_module->preloader = module->preloader;
     the_module->unloader = module->unloader;
 
@@ -59,10 +59,10 @@ bool load_module(b_vm *vm, b_module_init init_fn, char *import_name, char *sourc
         b_field_reg field = module->fields[j];
         b_value field_name = GC_STRING(field.name);
 
-        b_value v = field.field_value(vm);
-        push(vm, v);
+        b_value v = field.field_value(vm, th);
+        push(th, v);
         table_set(vm, &the_module->values, field_name, v);
-        pop(vm);
+        pop(th);
       }
     }
 
@@ -71,10 +71,10 @@ bool load_module(b_vm *vm, b_module_init init_fn, char *import_name, char *sourc
         b_func_reg func = module->functions[j];
         b_value func_name = GC_STRING(func.name);
 
-        b_value func_real_value = OBJ_VAL(GC(new_native(vm, func.function, func.name)));
-        push(vm, func_real_value);
+        b_value func_real_value = OBJ_VAL(GC(new_native(vm, th, func.function, func.name)));
+        push(th, func_real_value);
         table_set(vm, &the_module->values, func_name, func_real_value);
-        pop(vm);
+        pop(th);
       }
     }
 
@@ -82,9 +82,9 @@ bool load_module(b_vm *vm, b_module_init init_fn, char *import_name, char *sourc
       for (int j = 0; module->classes[j].name != NULL; j++) {
         b_class_reg klass_reg = module->classes[j];
 
-        b_obj_string *class_name = (b_obj_string *)GC(copy_string(vm, klass_reg.name, (int)strlen(klass_reg.name)));
+        b_obj_string *class_name = (b_obj_string *)GC(copy_string(vm, th, klass_reg.name, (int)strlen(klass_reg.name)));
 
-        b_obj_class *klass = (b_obj_class *)GC(new_class(vm, class_name));
+        b_obj_class *klass = (b_obj_class *)GC(new_class(vm, th, class_name));
 
         if (klass_reg.functions != NULL) {
           for (int k = 0; klass_reg.functions[k].name != NULL; k++) {
@@ -93,7 +93,7 @@ bool load_module(b_vm *vm, b_module_init init_fn, char *import_name, char *sourc
 
             b_value func_name = GC_STRING(func.name);
 
-            b_obj_native *native = (b_obj_native*)GC(new_native(vm, func.function, func.name));
+            b_obj_native *native = (b_obj_native*)GC(new_native(vm, th, func.function, func.name));
 
             if (func.is_static) {
               native->type = TYPE_STATIC;
@@ -110,13 +110,13 @@ bool load_module(b_vm *vm, b_module_init init_fn, char *import_name, char *sourc
             b_field_reg field = klass_reg.fields[k];
             b_value field_name = GC_STRING(field.name);
 
-            b_value v = field.field_value(vm);
-            push(vm, v);
+            b_value v = field.field_value(vm, th);
+            push(th, v);
             table_set(vm,
                       field.is_static ? &klass->static_properties
                       : &klass->properties,
                       field_name, v);
-            pop(vm);
+            pop(th);
           }
         }
 
@@ -127,7 +127,7 @@ bool load_module(b_vm *vm, b_module_init init_fn, char *import_name, char *sourc
     if(handle != NULL) {
       the_module->handle = handle;  // set handle for shared library modules
     }
-    add_native_module(vm, the_module, the_module->name);
+    add_native_module(vm, th, the_module, the_module->name);
 
     CLEAR_GC();
     return true;
@@ -138,18 +138,18 @@ bool load_module(b_vm *vm, b_module_init init_fn, char *import_name, char *sourc
   return false;
 }
 
-void add_native_module(b_vm *vm, b_obj_module *module, const char *as) {
+void add_native_module(b_vm *vm, b_vm_thread *th, b_obj_module *module, const char *as) {
   if(as != NULL) {
     module->name = strdup(as);
   }
   b_value name = STRING_VAL(module->name);
-  push(vm, name);
-  push(vm, OBJ_VAL(module));
+  push(th, name);
+  push(th, OBJ_VAL(module));
   table_set(vm, &vm->modules, name, OBJ_VAL(module));
-  pop_n(vm, 2);
+  pop_n(th, 2);
 }
 
-void bind_user_modules(b_vm *vm, char *pkg_root) {
+void bind_user_modules(b_vm *vm, b_vm_thread *th, char *pkg_root) {
   if(pkg_root == NULL) return;
 
   DIR *dir;
@@ -184,7 +184,7 @@ void bind_user_modules(b_vm *vm, char *pkg_root) {
             memcpy(name, filename, name_length);
             name[name_length] = '\0';
 
-            char* error = load_user_module(vm, path, name);
+            char* error = load_user_module(vm, th, path, name);
             if(error != NULL) {
               WARN("Failed not load module %s from %s. Error: %s.", name, path, error);
             }
@@ -198,15 +198,15 @@ void bind_user_modules(b_vm *vm, char *pkg_root) {
   CLEAR_GC();
 }
 
-void bind_native_modules(b_vm *vm) {
+void bind_native_modules(b_vm *vm, b_vm_thread *th) {
   for (int i = 0; modules[i] != NULL; i++) {
-    load_module(vm, modules[i], NULL, strdup("<__native__>"), NULL);
+    load_module(vm, th, modules[i], NULL, strdup("<__native__>"), NULL);
   }
-  bind_user_modules(vm, merge_paths(get_exe_dir(), "dist"));
-  bind_user_modules(vm, merge_paths(getcwd(NULL, 0), LOCAL_PACKAGES_DIRECTORY LOCAL_EXT_DIRECTORY));
+  bind_user_modules(vm, th, merge_paths(get_exe_dir(), "dist"));
+  bind_user_modules(vm, th, merge_paths(getcwd(NULL, 0), LOCAL_PACKAGES_DIRECTORY LOCAL_EXT_DIRECTORY));
 }
 
-char* load_user_module(b_vm *vm, const char *path, char *name) {
+char* load_user_module(b_vm *vm, b_vm_thread *th, const char *path, char *name) {
   int length = (int)strlen(name) + 20; // 20 == strlen("blade_module_loader_")
   char *fn_name = ALLOCATE(char, length + 1);
 
@@ -232,7 +232,7 @@ char* load_user_module(b_vm *vm, const char *path, char *name) {
   memcpy(module_file, path, path_length);
   module_file[path_length] = '\0';
 
-  if(!load_module(vm, fn, name, module_file, handle)) {
+  if(!load_module(vm, th, fn, name, module_file, handle)) {
     FREE_ARRAY(char, fn_name, length + 1);
     FREE_ARRAY(char, module_file, path_length + 1);
     dlclose(handle);

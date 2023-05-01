@@ -11,7 +11,7 @@ typedef struct {
   b_native_fn function;
 } b_func_reg;
 
-typedef b_value (*b_class_field)(b_vm *);
+typedef b_value (*b_class_field)(b_vm *, b_vm_thread *);
 
 typedef void (*b_module_loader)(b_vm *);
 
@@ -42,10 +42,10 @@ typedef b_module_reg* (*b_module_init)(b_vm *);
   b_module_reg* blade_module_loader_##module(b_vm *vm)
 #define GET_MODULE_LOADER(module) &blade_module_loader_##module
 
-void bind_native_modules(b_vm *vm);
-void add_native_module(b_vm *vm, b_obj_module *module, const char *as);
-bool load_module(b_vm *vm, b_module_init init_fn, char *name, char *source, void *handle);
-char* load_user_module(b_vm *vm, const char *path, char *name);
+void bind_native_modules(b_vm *vm, b_vm_thread *th);
+void add_native_module(b_vm *vm, b_vm_thread *th, b_obj_module *module, const char *as);
+bool load_module(b_vm *vm, b_vm_thread *th, b_module_init init_fn, char *name, char *source, void *handle);
+char* load_user_module(b_vm *vm, b_vm_thread *th, const char *path, char *name);
 void close_dl_module(void* handle);
 
 #endif

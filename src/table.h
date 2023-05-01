@@ -27,13 +27,13 @@ bool table_get(b_table *table, b_value key, b_value *value);
 bool table_delete(b_table *table, b_value key);
 
 void table_add_all(b_vm *vm, b_table *from, b_table *to);
-void table_copy(b_vm *vm, b_table *from, b_table *to);
+void table_copy(b_vm *vm, b_vm_thread *th, b_table *from, b_table *to);
 
 b_obj_string *table_find_string(b_table *table, const char *chars, int length,
                                 uint32_t hash);
 
 b_value table_find_key(b_table *table, b_value value);
-b_obj_list *table_get_keys(b_vm *vm, b_table *table);
+b_obj_list *table_get_keys(b_vm *vm, b_vm_thread *th, b_table *table);
 
 void table_print(b_table *table);
 

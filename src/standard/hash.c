@@ -171,7 +171,7 @@ DECLARE_MODULE_METHOD(hash__sha224) {
     result = sha224_string(bytes->bytes.bytes, bytes->bytes.count);
   }
 
-  b_obj_string *string = copy_string(vm, result, 56);
+  b_obj_string *string = copy_string(vm, th, result, 56);
   free(result);
   RETURN_OBJ(string);
 }
@@ -211,7 +211,7 @@ DECLARE_MODULE_METHOD(hash__sha384) {
     result = SHA384String(bytes->bytes.bytes, bytes->bytes.count);
   }
 
-  b_obj_string *string = copy_string(vm, result, 96);
+  b_obj_string *string = copy_string(vm, th, result, 96);
   free(result);
   RETURN_OBJ(string);
 }

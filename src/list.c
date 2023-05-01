@@ -6,8 +6,8 @@ inline void write_list(b_vm *vm, b_obj_list *list, b_value value) {
   write_value_arr(vm, &list->items, value);
 }
 
-b_obj_list *copy_list(b_vm *vm, b_obj_list *list, int start, int length) {
-  b_obj_list *_list = (b_obj_list *)GC(new_list(vm));
+b_obj_list *copy_list(b_vm *vm, b_vm_thread *th, b_obj_list *list, int start, int length) {
+  b_obj_list *_list = (b_obj_list *)GC(new_list(vm, th));
 
   if(start == -1) start = 0;
   if(length == -1) length = list->items.count - start;
@@ -39,7 +39,7 @@ DECLARE_LIST_METHOD(clear) {
 DECLARE_LIST_METHOD(clone) {
   ENFORCE_ARG_COUNT(clone, 0);
   b_obj_list *list = AS_LIST(METHOD_OBJECT);
-  RETURN_OBJ(copy_list(vm, list, 0, list->items.count));
+  RETURN_OBJ(copy_list(vm, th, list, 0, list->items.count));
 }
 
 DECLARE_LIST_METHOD(count) {
@@ -126,7 +126,7 @@ DECLARE_LIST_METHOD(shift) {
     list->items.count = 0;
     RETURN_NIL;
   } else if (count > 0) {
-    b_obj_list *n_list = (b_obj_list *) GC(new_list(vm));
+    b_obj_list *n_list = (b_obj_list *) GC(new_list(vm, th));
     for (int i = 0; i < count; i++) {
       write_list(vm, n_list, list->items.values[0]);
       for (int j = 0; j < list->items.count; j++) {
@@ -187,7 +187,7 @@ DECLARE_LIST_METHOD(reverse) {
   ENFORCE_ARG_COUNT(reverse, 0);
 
   b_obj_list *list = AS_LIST(METHOD_OBJECT);
-  b_obj_list *nlist = (b_obj_list *) GC(new_list(vm));
+  b_obj_list *nlist = (b_obj_list *) GC(new_list(vm, th));
 
   /*// in-place reversal
   int start = 0, end = list->items.count - 1;
@@ -290,10 +290,10 @@ DECLARE_LIST_METHOD(take) {
     count = list->items.count + count;
 
   if (list->items.count < count) {
-    RETURN_OBJ(copy_list(vm, list, 0, list->items.count));
+    RETURN_OBJ(copy_list(vm, th, list, 0, list->items.count));
   }
 
-  RETURN_OBJ(copy_list(vm, list, 0, count));
+  RETURN_OBJ(copy_list(vm, th, list, 0, count));
 }
 
 DECLARE_LIST_METHOD(get) {
@@ -313,7 +313,7 @@ DECLARE_LIST_METHOD(compact) {
   ENFORCE_ARG_COUNT(compact, 0);
 
   b_obj_list *list = AS_LIST(METHOD_OBJECT);
-  b_obj_list *n_list = (b_obj_list *) GC(new_list(vm));
+  b_obj_list *n_list = (b_obj_list *) GC(new_list(vm, th));
 
   for (int i = 0; i < list->items.count; i++) {
     if (!values_equal(list->items.values[i], NIL_VAL)) {
@@ -328,7 +328,7 @@ DECLARE_LIST_METHOD(unique) {
   ENFORCE_ARG_COUNT(unique, 0);
 
   b_obj_list *list = AS_LIST(METHOD_OBJECT);
-  b_obj_list *n_list = (b_obj_list *) GC(new_list(vm));
+  b_obj_list *n_list = (b_obj_list *) GC(new_list(vm, th));
 
   for (int i = 0; i < list->items.count; i++) {
     bool found = false;
@@ -349,7 +349,7 @@ DECLARE_LIST_METHOD(unique) {
 
 DECLARE_LIST_METHOD(zip) {
   b_obj_list *list = AS_LIST(METHOD_OBJECT);
-  b_obj_list *n_list = (b_obj_list *) GC(new_list(vm));
+  b_obj_list *n_list = (b_obj_list *) GC(new_list(vm, th));
 
   b_obj_list **arg_list = ALLOCATE(b_obj_list *, arg_count);
 
@@ -359,7 +359,7 @@ DECLARE_LIST_METHOD(zip) {
   }
 
   for (int i = 0; i < list->items.count; i++) {
-    b_obj_list *a_list = (b_obj_list *) GC(new_list(vm));
+    b_obj_list *a_list = (b_obj_list *) GC(new_list(vm, th));
     write_list(vm, a_list, list->items.values[i]); // item of main list
 
     for (int j = 0; j < arg_count; j++) { // item of argument lists
@@ -379,7 +379,7 @@ DECLARE_LIST_METHOD(zip) {
 DECLARE_LIST_METHOD(to_dict) {
   ENFORCE_ARG_COUNT(to_dict, 0);
 
-  b_obj_dict *dict = (b_obj_dict *) GC(new_dict(vm));
+  b_obj_dict *dict = (b_obj_dict *) GC(new_dict(vm, th));
   b_obj_list *list = AS_LIST(METHOD_OBJECT);
   for (int i = 0; i < list->items.count; i++) {
     dict_set_entry(vm, dict, NUMBER_VAL(i), list->items.values[i]);

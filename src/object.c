@@ -9,7 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-b_obj *allocate_object(b_vm *vm, size_t size, b_obj_type type) {
+b_obj *allocate_object(b_vm *vm, b_vm_thread *th, size_t size, b_obj_type type) {
+  pthread_mutex_lock(&th->lock);
   b_obj *object = (b_obj *) reallocate(vm, NULL, 0, size);
 
   object->type = type;
@@ -23,11 +24,12 @@ b_obj *allocate_object(b_vm *vm, size_t size, b_obj_type type) {
 //  printf("%p allocate %ld for %d\n", (void *)object, size, type);
 //#endif
 
+  pthread_mutex_unlock(&th->lock);
   return object;
 }
 
 
-b_obj_ptr *new_ptr(b_vm *vm, void *pointer) {
+b_obj_ptr *new_ptr(b_vm *vm, b_vm_thread *th, void *pointer) {
   b_obj_ptr *ptr = ALLOCATE_OBJ(b_obj_ptr, OBJ_PTR);
   ptr->pointer = pointer;
   ptr->name = "<void *>";
@@ -35,7 +37,7 @@ b_obj_ptr *new_ptr(b_vm *vm, void *pointer) {
   return ptr;
 }
 
-b_obj_module *new_module(b_vm *vm, char *name, char *file) {
+b_obj_module *new_module(b_vm *vm, b_vm_thread *th, char *name, char *file) {
   b_obj_module *module = ALLOCATE_OBJ(b_obj_module, OBJ_MODULE);
   init_table(&module->values);
   module->name = name;
@@ -47,7 +49,7 @@ b_obj_module *new_module(b_vm *vm, char *name, char *file) {
   return module;
 }
 
-b_obj_switch *new_switch(b_vm *vm) {
+b_obj_switch *new_switch(b_vm *vm, b_vm_thread *th) {
   b_obj_switch *sw = ALLOCATE_OBJ(b_obj_switch, OBJ_SWITCH);
   init_table(&sw->table);
   sw->default_jump = -1;
@@ -55,19 +57,19 @@ b_obj_switch *new_switch(b_vm *vm) {
   return sw;
 }
 
-b_obj_bytes *new_bytes(b_vm *vm, int length) {
+b_obj_bytes *new_bytes(b_vm *vm, b_vm_thread *th, int length) {
   b_obj_bytes *bytes = ALLOCATE_OBJ(b_obj_bytes, OBJ_BYTES);
   init_byte_arr(vm, &bytes->bytes, length);
   return bytes;
 }
 
-b_obj_list *new_list(b_vm *vm) {
+b_obj_list *new_list(b_vm *vm, b_vm_thread *th) {
   b_obj_list *list = ALLOCATE_OBJ(b_obj_list, OBJ_LIST);
   init_value_arr(&list->items);
   return list;
 }
 
-b_obj_range *new_range(b_vm *vm, int lower, int upper) {
+b_obj_range *new_range(b_vm *vm, b_vm_thread *th, int lower, int upper) {
   b_obj_range *range = ALLOCATE_OBJ(b_obj_range, OBJ_RANGE);
   range->lower = lower;
   range->upper = upper;
@@ -79,14 +81,14 @@ b_obj_range *new_range(b_vm *vm, int lower, int upper) {
   return range;
 }
 
-b_obj_dict *new_dict(b_vm *vm) {
+b_obj_dict *new_dict(b_vm *vm, b_vm_thread *th) {
   b_obj_dict *dict = ALLOCATE_OBJ(b_obj_dict, OBJ_DICT);
   init_value_arr(&dict->names);
   init_table(&dict->items);
   return dict;
 }
 
-b_obj_file *new_file(b_vm *vm, b_obj_string *path, b_obj_string *mode) {
+b_obj_file *new_file(b_vm *vm, b_vm_thread *th, b_obj_string *path, b_obj_string *mode) {
   b_obj_file *file = ALLOCATE_OBJ(b_obj_file, OBJ_FILE);
   file->is_open = true;
   file->mode = mode;
@@ -98,14 +100,14 @@ b_obj_file *new_file(b_vm *vm, b_obj_string *path, b_obj_string *mode) {
   return file;
 }
 
-b_obj_bound *new_bound_method(b_vm *vm, b_value receiver, b_obj_closure *method) {
+b_obj_bound *new_bound_method(b_vm *vm, b_vm_thread *th, b_value receiver, b_obj_closure *method) {
   b_obj_bound *bound = ALLOCATE_OBJ(b_obj_bound, OBJ_BOUND_METHOD);
   bound->receiver = receiver;
   bound->method = method;
   return bound;
 }
 
-b_obj_class *new_class(b_vm *vm, b_obj_string *name) {
+b_obj_class *new_class(b_vm *vm, b_vm_thread *th, b_obj_string *name) {
   b_obj_class *klass = ALLOCATE_OBJ(b_obj_class, OBJ_CLASS);
   klass->name = name;
   init_table(&klass->properties);
@@ -116,7 +118,7 @@ b_obj_class *new_class(b_vm *vm, b_obj_string *name) {
   return klass;
 }
 
-b_obj_func *new_function(b_vm *vm, b_obj_module *module, b_func_type type) {
+b_obj_func *new_function(b_vm *vm, b_vm_thread *th, b_obj_module *module, b_func_type type) {
   b_obj_func *function = ALLOCATE_OBJ(b_obj_func, OBJ_FUNCTION);
   function->arity = 0;
   function->up_value_count = 0;
@@ -128,21 +130,21 @@ b_obj_func *new_function(b_vm *vm, b_obj_module *module, b_func_type type) {
   return function;
 }
 
-b_obj_instance *new_instance(b_vm *vm, b_obj_class *klass) {
+b_obj_instance *new_instance(b_vm *vm, b_vm_thread *th, b_obj_class *klass) {
   b_obj_instance *instance = ALLOCATE_OBJ(b_obj_instance, OBJ_INSTANCE);
-  push(vm, OBJ_VAL(instance)); // gc fix
+  push(th, OBJ_VAL(instance)); // gc fix
 
   instance->klass = klass;
   init_table(&instance->properties);
   if(klass->properties.count > 0) {
-    table_copy(vm, &klass->properties, &instance->properties);
+    table_copy(vm, th, &klass->properties, &instance->properties);
   }
 
-  pop(vm); // gc fix
+  pop(th); // gc fix
   return instance;
 }
 
-b_obj_native *new_native(b_vm *vm, b_native_fn function, const char *name) {
+b_obj_native *new_native(b_vm *vm, b_vm_thread *th, b_native_fn function, const char *name) {
   b_obj_native *native = ALLOCATE_OBJ(b_obj_native, OBJ_NATIVE);
   native->function = function;
   native->name = name;
@@ -150,9 +152,8 @@ b_obj_native *new_native(b_vm *vm, b_native_fn function, const char *name) {
   return native;
 }
 
-b_obj_closure *new_closure(b_vm *vm, b_obj_func *function) {
-  b_obj_up_value **up_values =
-      ALLOCATE(b_obj_up_value *, function->up_value_count);
+b_obj_closure *new_closure(b_vm *vm, b_vm_thread *th, b_obj_func *function) {
+  b_obj_up_value **up_values = ALLOCATE(b_obj_up_value *, function->up_value_count);
   for (int i = 0; i < function->up_value_count; i++) {
     up_values[i] = NULL;
   }
@@ -164,7 +165,7 @@ b_obj_closure *new_closure(b_vm *vm, b_obj_func *function) {
   return closure;
 }
 
-b_obj_string *allocate_string(b_vm *vm, char *chars, int length, uint32_t hash) {
+b_obj_string *allocate_string(b_vm *vm, b_vm_thread *th, char *chars, int length, uint32_t hash) {
   b_obj_string *string = ALLOCATE_OBJ(b_obj_string, OBJ_STRING);
   string->chars = chars;
   string->length = length;
@@ -172,14 +173,14 @@ b_obj_string *allocate_string(b_vm *vm, char *chars, int length, uint32_t hash) 
   string->is_ascii = false;
   string->hash = hash;
 
-  push(vm, OBJ_VAL(string)); // fixing gc corruption
+  push(vm->thread, OBJ_VAL(string)); // fixing gc corruption
   table_set(vm, &vm->strings, OBJ_VAL(string), NIL_VAL);
-  pop(vm); // fixing gc corruption
+  pop(vm->thread); // fixing gc corruption
 
   return string;
 }
 
-b_obj_string *take_string(b_vm *vm, char *chars, int length) {
+b_obj_string *take_string(b_vm *vm, b_vm_thread *th, char *chars, int length) {
   uint32_t hash = hash_string(chars, length);
 
   b_obj_string *interned = table_find_string(&vm->strings, chars, length, hash);
@@ -188,10 +189,10 @@ b_obj_string *take_string(b_vm *vm, char *chars, int length) {
     return interned;
   }
 
-  return allocate_string(vm, chars, length, hash);
+  return allocate_string(vm, th, chars, length, hash);
 }
 
-b_obj_string *copy_string(b_vm *vm, const char *chars, int length) {
+b_obj_string *copy_string(b_vm *vm, b_vm_thread *th, const char *chars, int length) {
   uint32_t hash = hash_string(chars, length);
 
   b_obj_string *interned = table_find_string(&vm->strings, chars, length, hash);
@@ -202,10 +203,10 @@ b_obj_string *copy_string(b_vm *vm, const char *chars, int length) {
   memcpy(heap_chars, chars, length);
   heap_chars[length] = '\0';
 
-  return allocate_string(vm, heap_chars, length, hash);
+  return allocate_string(vm, th, heap_chars, length, hash);
 }
 
-b_obj_up_value *new_up_value(b_vm *vm, b_value *slot) {
+b_obj_up_value *new_up_value(b_vm *vm, b_vm_thread *th, b_value *slot) {
   b_obj_up_value *up_value = ALLOCATE_OBJ(b_obj_up_value, OBJ_UP_VALUE);
   up_value->closed = NIL_VAL;
   up_value->location = slot;
@@ -347,13 +348,13 @@ void print_object(b_value value, bool fix_string) {
   }
 }
 
-b_obj_bytes *copy_bytes(b_vm *vm, unsigned char *b, int length) {
-  b_obj_bytes *bytes = new_bytes(vm, length);
+b_obj_bytes *copy_bytes(b_vm *vm, b_vm_thread *th, unsigned char *b, int length) {
+  b_obj_bytes *bytes = new_bytes(vm, th, length);
   memcpy(bytes->bytes.bytes, b, length);
   return bytes;
 }
 
-b_obj_bytes *take_bytes(b_vm *vm, unsigned char *b, int length) {
+b_obj_bytes *take_bytes(b_vm *vm, b_vm_thread *th, unsigned char *b, int length) {
   b_obj_bytes *bytes = ALLOCATE_OBJ(b_obj_bytes, OBJ_BYTES);
   bytes->bytes.count = length;
   bytes->bytes.bytes = b;

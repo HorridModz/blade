@@ -116,26 +116,26 @@ DECLARE_MODULE_METHOD(reflect__call_method) {
 
   b_value value;
   if (table_get(&AS_INSTANCE(args[0])->klass->methods, args[1], &value)) {
-    b_obj_bound *bound = (b_obj_bound*)GC(new_bound_method(vm, args[0], AS_CLOSURE(value)));
+    b_obj_bound *bound = (b_obj_bound*)GC(new_bound_method(vm, th, args[0], AS_CLOSURE(value)));
 
     b_obj_list *list = AS_LIST(args[2]);
     int items_count = list->items.count;
 
     // remove the args list, the string name and the instance
     // then push the bound method
-    pop_n(vm, 3);
-    push(vm, OBJ_VAL(bound));
+    pop_n(th, 3);
+    push(th, OBJ_VAL(bound));
 
     // convert the list into function args
     for(int i = 0; i < items_count; i++) {
-      push(vm, list->items.values[i]);
+      push(th, list->items.values[i]);
     }
 
-    b_call_frame *frame = &vm->frames[vm->frame_count++];
+    b_call_frame *frame = &th->frames[th->frame_count++];
     frame->closure = bound->method;
     frame->ip = bound->method->function->blob.code;
 
-    frame->slots = vm->stack_top - items_count - 1;
+    frame->slots = th->stack_top - items_count - 1;
     vm->current_frame = frame;
   }
 
@@ -147,7 +147,7 @@ DECLARE_MODULE_METHOD(reflect__bindmethod) {
   ENFORCE_ARG_TYPE(delist, 0, IS_INSTANCE);
   ENFORCE_ARG_TYPE(delist, 1, IS_CLOSURE);
 
-  b_obj_bound *bound = (b_obj_bound*)GC(new_bound_method(vm, args[0], AS_CLOSURE(args[1])));
+  b_obj_bound *bound = (b_obj_bound*)GC(new_bound_method(vm, th, args[0], AS_CLOSURE(args[1])));
   RETURN_OBJ(bound);
 }
 
@@ -159,7 +159,7 @@ DECLARE_MODULE_METHOD(reflect__getboundmethod) {
   b_obj_instance *instance = AS_INSTANCE(args[0]);
   b_value value;
   if (table_get(&instance->klass->methods, args[1], &value)) {
-    b_obj_bound *bound = (b_obj_bound*)GC(new_bound_method(vm, args[0], AS_CLOSURE(value)));
+    b_obj_bound *bound = (b_obj_bound*)GC(new_bound_method(vm, th, args[0], AS_CLOSURE(value)));
     RETURN_OBJ(bound);
   }
   RETURN_NIL;
@@ -178,7 +178,7 @@ DECLARE_MODULE_METHOD(reflect__isptr) {
 
 DECLARE_MODULE_METHOD(reflect__valueatdistance) {
   ENFORCE_ARG_COUNT(valueatdist, 1);
-  RETURN_VALUE(vm->stack_top[(int)AS_NUMBER(args[0])]);
+  RETURN_VALUE(th->stack_top[(int)AS_NUMBER(args[0])]);
 }
 
 DECLARE_MODULE_METHOD(reflect__get_class_metadata) {
@@ -186,11 +186,11 @@ DECLARE_MODULE_METHOD(reflect__get_class_metadata) {
   ENFORCE_ARG_TYPE(get_class_metadata, 0, IS_CLASS);
   b_obj_class *class = AS_CLASS(args[0]);
 
-  b_obj_dict *result = (b_obj_dict *)GC(new_dict(vm));
+  b_obj_dict *result = (b_obj_dict *)GC(new_dict(vm, th));
   dict_set_entry(vm, result, GC_STRING("name"), OBJ_VAL(class->name));
-  dict_set_entry(vm, result, GC_STRING("properties"), OBJ_VAL(table_get_keys(vm, &class->properties)));
-  dict_set_entry(vm, result, GC_STRING("static_properties"), OBJ_VAL(table_get_keys(vm, &class->static_properties)));
-  dict_set_entry(vm, result, GC_STRING("methods"), OBJ_VAL(table_get_keys(vm, &class->methods)));
+  dict_set_entry(vm, result, GC_STRING("properties"), OBJ_VAL(table_get_keys(vm, th, &class->properties)));
+  dict_set_entry(vm, result, GC_STRING("static_properties"), OBJ_VAL(table_get_keys(vm, th, &class->static_properties)));
+  dict_set_entry(vm, result, GC_STRING("methods"), OBJ_VAL(table_get_keys(vm, th, &class->methods)));
   dict_set_entry(vm, result, GC_STRING("superclass"), class->superclass != NULL ? OBJ_VAL(class->superclass) : NIL_VAL);
 
   RETURN_OBJ(result);
@@ -201,7 +201,7 @@ DECLARE_MODULE_METHOD(reflect__get_function_metadata) {
   ENFORCE_ARG_TYPE(get_function_metadata, 0, IS_CLOSURE);
   b_obj_closure *closure = AS_CLOSURE(args[0]);
 
-  b_obj_dict *result = (b_obj_dict *)GC(new_dict(vm));
+  b_obj_dict *result = (b_obj_dict *)GC(new_dict(vm, th));
   dict_set_entry(vm, result, GC_STRING("name"), OBJ_VAL(closure->function->name));
   dict_set_entry(vm, result, GC_STRING("arity"), NUMBER_VAL(closure->function->arity));
   dict_set_entry(vm, result, GC_STRING("is_variadic"), NUMBER_VAL(closure->function->is_variadic));
@@ -217,12 +217,12 @@ DECLARE_MODULE_METHOD(reflect__get_module_metadata) {
   ENFORCE_ARG_TYPE(get_module_metadata, 0, IS_MODULE);
   b_obj_module *module = AS_MODULE(args[0]);
 
-  b_obj_dict *result = (b_obj_dict *)GC(new_dict(vm));
+  b_obj_dict *result = (b_obj_dict *)GC(new_dict(vm, th));
   dict_set_entry(vm, result, GC_STRING("name"), STRING_VAL(module->name));
   dict_set_entry(vm, result, GC_STRING("file"), STRING_VAL(module->file));
   dict_set_entry(vm, result, GC_STRING("has_preloader"), BOOL_VAL(module->preloader != NULL));
   dict_set_entry(vm, result, GC_STRING("has_unloader"), BOOL_VAL(module->unloader != NULL));
-  dict_set_entry(vm, result, GC_STRING("definitions"), OBJ_VAL(table_get_keys(vm, &module->values)));
+  dict_set_entry(vm, result, GC_STRING("definitions"), OBJ_VAL(table_get_keys(vm, th, &module->values)));
 
   RETURN_OBJ(result);
 }
@@ -270,15 +270,15 @@ DECLARE_MODULE_METHOD(reflect__runscript) {
   module->file = module_file;
 
   if(fn != NULL) {
-    push(vm, OBJ_VAL(fn));
-    b_obj_closure *cls = new_closure(vm, fn);
-    pop(vm);
+    push(th, OBJ_VAL(fn));
+    b_obj_closure *cls = new_closure(vm, th, fn);
+    pop(th);
 
-    b_call_frame *frame = &vm->frames[vm->frame_count++];
+    b_call_frame *frame = &th->frames[th->frame_count++];
     frame->closure = cls;
     frame->ip = fn->blob.code;
 
-    frame->slots = vm->stack_top - 1;
+    frame->slots = th->stack_top - 1;
     vm->current_frame = frame;
   }
 

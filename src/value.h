@@ -13,6 +13,7 @@ typedef struct s_obj b_obj;
 typedef struct s_obj_string b_obj_string;
 typedef struct s_obj_list b_obj_list;
 typedef struct s_vm b_vm;
+typedef struct s_vm_thread b_vm_thread;
 
 typedef union {
   uint64_t bits;
@@ -166,14 +167,14 @@ uint32_t hash_value(b_value value);
 
 void sort_values(b_value *values, int count);
 
-b_value copy_value(b_vm *vm, b_value value);
+b_value copy_value(b_vm *vm, b_vm_thread *th, b_value value);
 
-#define STRING_VAL(val) OBJ_VAL(copy_string(vm, val, (int)strlen(val)))
-#define STRING_L_VAL(val, l) OBJ_VAL(copy_string(vm, val, l))
-#define STRING_T_VAL(val, l) OBJ_VAL(take_string(vm, val, l))
-#define STRING_TT_VAL(val) OBJ_VAL(take_string(vm, val, (int)strlen(val)))
-#define BYTES_VAL(val) OBJ_VAL(take_bytes(vm, (unsigned char *)(val), (int)strlen((char *)(val))))
-#define PTR_VAL(val) OBJ_VAL(new_ptr(vm, val))
+#define STRING_VAL(val) OBJ_VAL(copy_string(vm, th, val, (int)strlen(val)))
+#define STRING_L_VAL(val, l) OBJ_VAL(copy_string(vm, th, val, l))
+#define STRING_T_VAL(val, l) OBJ_VAL(take_string(vm, th, val, l))
+#define STRING_TT_VAL(val) OBJ_VAL(take_string(vm, th, val, (int)strlen(val)))
+#define BYTES_VAL(val) OBJ_VAL(take_bytes(vm, th, (unsigned char *)(val), (int)strlen((char *)(val))))
+#define PTR_VAL(val) OBJ_VAL(new_ptr(vm, th, val))
 
 #ifdef __cplusplus
 }

@@ -168,7 +168,7 @@ typedef struct {
   b_obj_closure *method;
 } b_obj_bound; // a bound method
 
-typedef bool (*b_native_fn)(b_vm *, int, b_value *);
+typedef bool (*b_native_fn)(b_vm *, b_vm_thread *, int, b_value *);
 typedef void (*b_ptr_free_fn)(void *);
 
 typedef struct b_obj_native {
@@ -227,39 +227,39 @@ typedef struct {
 } b_obj_ptr;
 
 // non-user objects...
-b_obj_module *new_module(b_vm *vm, char *name, char *file);
+b_obj_module *new_module(b_vm *vm, b_vm_thread *th, char *name, char *file);
 
-b_obj_switch *new_switch(b_vm *vm);
-b_obj_ptr *new_ptr(b_vm *vm, void *pointer);
+b_obj_switch *new_switch(b_vm *vm, b_vm_thread *th);
+b_obj_ptr *new_ptr(b_vm *vm, b_vm_thread *th, void *pointer);
 
 // data containers
-b_obj_list *new_list(b_vm *vm);
-b_obj_range *new_range(b_vm *vm, int lower, int upper);
+b_obj_list *new_list(b_vm *vm, b_vm_thread *th);
+b_obj_range *new_range(b_vm *vm, b_vm_thread *th, int lower, int upper);
 
-b_obj_bytes *new_bytes(b_vm *vm, int length);
+b_obj_bytes *new_bytes(b_vm *vm, b_vm_thread *th, int length);
 
-b_obj_dict *new_dict(b_vm *vm);
+b_obj_dict *new_dict(b_vm *vm, b_vm_thread *th);
 
-b_obj_file *new_file(b_vm *vm, b_obj_string *path, b_obj_string *mode);
+b_obj_file *new_file(b_vm *vm, b_vm_thread *th, b_obj_string *path, b_obj_string *mode);
 
 // base objects
-b_obj_bound *new_bound_method(b_vm *vm, b_value receiver, b_obj_closure *method);
+b_obj_bound *new_bound_method(b_vm *vm, b_vm_thread *th, b_value receiver, b_obj_closure *method);
 
-b_obj_class *new_class(b_vm *vm, b_obj_string *name);
+b_obj_class *new_class(b_vm *vm, b_vm_thread *th, b_obj_string *name);
 
-b_obj_closure *new_closure(b_vm *vm, b_obj_func *function);
+b_obj_closure *new_closure(b_vm *vm, b_vm_thread *th, b_obj_func *function);
 
-b_obj_func *new_function(b_vm *vm, b_obj_module *module, b_func_type type);
+b_obj_func *new_function(b_vm *vm, b_vm_thread *th, b_obj_module *module, b_func_type type);
 
-b_obj_instance *new_instance(b_vm *vm, b_obj_class *klass);
+b_obj_instance *new_instance(b_vm *vm, b_vm_thread *th, b_obj_class *klass);
 
-b_obj_up_value *new_up_value(b_vm *vm, b_value *slot);
+b_obj_up_value *new_up_value(b_vm *vm, b_vm_thread *th, b_value *slot);
 
-b_obj_native *new_native(b_vm *vm, b_native_fn function, const char *name);
+b_obj_native *new_native(b_vm *vm, b_vm_thread *th, b_native_fn function, const char *name);
 
-b_obj_string *copy_string(b_vm *vm, const char *chars, int length);
+b_obj_string *copy_string(b_vm *vm, b_vm_thread *th, const char *chars, int length);
 
-b_obj_string *take_string(b_vm *vm, char *chars, int length);
+b_obj_string *take_string(b_vm *vm, b_vm_thread *th, char *chars, int length);
 
 void print_object(b_value value, bool fix_string);
 
@@ -267,9 +267,9 @@ const char *object_type(b_obj *object);
 
 char *object_to_string(b_vm *vm, b_value value);
 
-b_obj_bytes *copy_bytes(b_vm *vm, unsigned char *b, int length);
+b_obj_bytes *copy_bytes(b_vm *vm, b_vm_thread *th, unsigned char *b, int length);
 
-b_obj_bytes *take_bytes(b_vm *vm, unsigned char *b, int length);
+b_obj_bytes *take_bytes(b_vm *vm, b_vm_thread *th, unsigned char *b, int length);
 
 static inline bool is_obj_type(b_value v, b_obj_type t) {
   return IS_OBJ(v) && AS_OBJ(v)->type == t;
@@ -278,8 +278,8 @@ static inline bool is_obj_type(b_value v, b_obj_type t) {
 static inline bool is_std_file(b_obj_file *file) { return file->mode->length == 0; }
 
 #define ALLOCATE_OBJ(type, obj_type)                                           \
-  (type *)allocate_object(vm, sizeof(type), obj_type)
+  (type *)allocate_object(vm, th, sizeof(type), obj_type)
 
-b_obj *allocate_object(b_vm *vm, size_t size, b_obj_type type);
+b_obj *allocate_object(b_vm *vm, b_vm_thread *th, size_t size, b_obj_type type);
 
 #endif

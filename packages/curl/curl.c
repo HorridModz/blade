@@ -699,7 +699,7 @@ DECLARE_MODULE_METHOD(curl__easy_perform) {
   int result = curl_easy_perform(curl);
   if(result == CURLE_OK) {
 
-    b_obj_dict *dict = (b_obj_dict*)GC(new_dict(vm));
+    b_obj_dict *dict = (b_obj_dict*)GC(new_dict(vm, th));
     b_obj_bytes *data = (b_obj_bytes*)GC(copy_bytes(vm, body.ptr, body.len));
 
     dict_add_entry(vm, dict, GC_L_STRING("headers", 7), GC_STRING((char *)headers.ptr));
@@ -783,10 +783,10 @@ DECLARE_MODULE_METHOD(curl__easy_getinfo) {
         result = curl_easy_getinfo(curl, CURLINFO_CERTINFO, &ci);
 
         if (result == CURLE_OK) {
-          b_obj_list *list = (b_obj_list*)GC(new_list(vm));
+          b_obj_list *list = (b_obj_list*)GC(new_list(vm, th));
 
           for(int i = 0; i < ci->num_of_certs; i++) {
-            b_obj_list *inner_list = (b_obj_list*)GC(new_list(vm));
+            b_obj_list *inner_list = (b_obj_list*)GC(new_list(vm, th));
             struct curl_slist *s_list;
 
             for(s_list = ci->certinfo[i]; s_list; s_list = s_list->next)
@@ -801,7 +801,7 @@ DECLARE_MODULE_METHOD(curl__easy_getinfo) {
         struct curl_slist *data = NULL;
         result = curl_easy_getinfo(curl, info, data);
         if(result == CURLE_OK) {
-          b_obj_list *list = (b_obj_list*)GC(new_list(vm));
+          b_obj_list *list = (b_obj_list*)GC(new_list(vm, th));
           while(data) {
             write_list(vm, list, STRING_VAL(data->data));
             data = data->next;

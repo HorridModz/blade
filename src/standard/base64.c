@@ -122,7 +122,7 @@ DECLARE_MODULE_METHOD(base64__decode) {
 
   if (data == NULL) RETURN_NIL;
 
-  b_obj_bytes *bytes = new_bytes(vm, output_length);
+  b_obj_bytes *bytes = new_bytes(vm, th, output_length);
   memcpy(bytes->bytes.bytes, data, output_length);
   free(data);
 

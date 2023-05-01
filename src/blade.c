@@ -40,8 +40,8 @@ static void repl(b_vm *vm) {
 
   int brace_count = 0, paren_count = 0, bracket_count = 0, single_quote_count = 0, double_quote_count = 0;
 
-  b_obj_module *module = new_module(vm, strdup(""), strdup("<repl>"));
-  add_module(vm, module);
+  b_obj_module *module = new_module(vm, vm->thread, strdup(""), strdup("<repl>"));
+  add_module(vm, vm->thread, module);
 
 #if !defined(_WIN32) && !defined(__CYGWIN__)
 
@@ -190,8 +190,8 @@ static void run_file(b_vm *vm, char *file) {
   // set root file...
   vm->root_file = file;
 
-  b_obj_module *module = new_module(vm, strdup(""), strdup(file));
-  add_module(vm, module);
+  b_obj_module *module = new_module(vm, vm->thread, strdup(""), strdup(file));
+  add_module(vm, vm->thread, module);
 
   b_ptr_result result = interpret(vm, module, source);
   free(source);
@@ -208,8 +208,8 @@ static void run_code(b_vm *vm, char *source) {
   // set root file...
   vm->root_file = NULL;
 
-  b_obj_module *module = new_module(vm, strdup(""), strdup("<script>"));
-  add_module(vm, module);
+  b_obj_module *module = new_module(vm, vm->thread, strdup(""), strdup("<script>"));
+  add_module(vm, vm->thread, module);
 
   b_ptr_result result = interpret(vm, module, source);
   fflush(stdout);
@@ -333,7 +333,7 @@ int main(int argc, char *argv[]) {
     }
 
     // always do this last so that we can have access to everything else
-    bind_native_modules(vm);
+    bind_native_modules(vm, vm->thread);
 
     if (source != NULL) {
       run_code(vm, source);

@@ -16,7 +16,7 @@
 void *allocate(b_vm *vm, size_t size) {
   vm->bytes_allocated += size;
 
-  if (vm->thread == NULL && vm->bytes_allocated > vm->next_gc) {
+  if (vm->bytes_allocated > vm->next_gc) {
     collect_garbage(vm);
   }
 
@@ -37,7 +37,7 @@ void *allocate(b_vm *vm, size_t size) {
 void *reallocate(b_vm *vm, void *pointer, size_t old_size, size_t new_size) {
   vm->bytes_allocated += new_size - old_size;
 
-  if (vm->thread == NULL && new_size > old_size && vm->bytes_allocated > vm->next_gc) {
+  if (new_size > old_size && vm->bytes_allocated > vm->next_gc) {
     collect_garbage(vm);
   }
 
@@ -315,34 +315,38 @@ void free_object(b_vm *vm, b_obj *object) {
 }
 
 static void mark_roots(b_vm *vm) {
-  for (b_value *slot = vm->stack; slot < vm->stack_top; slot++) {
-    mark_value(vm, *slot);
-  }
-  for (int i = 0; i < vm->frame_count; i++) {
-    mark_object(vm, (b_obj *) vm->frames[i].closure);
-    for(int j = 0; j < vm->frames[i].handlers_count; j++) {
-      b_exception_frame handler = vm->frames[i].handlers[j];
-      mark_object(vm, (b_obj *)handler.klass);
+  b_vm_thread *next_thread = vm->thread;
+  while(next_thread != NULL) {
+    if(next_thread->th) {
+      for (b_value *slot = next_thread->stack; slot < next_thread->stack_top; slot++) {
+        mark_value(vm, *slot);
+      }
     }
-  }
-  for (b_obj_up_value *up_value = vm->open_up_values; up_value != NULL;
-       up_value = up_value->next) {
-    mark_object(vm, (b_obj *) up_value);
+    for (int i = 0; i < next_thread->frame_count; i++) {
+      mark_object(vm, (b_obj *) next_thread->frames[i].closure);
+      for(int j = 0; j < next_thread->frames[i].handlers_count; j++) {
+        b_exception_frame handler = next_thread->frames[i].handlers[j];
+        mark_object(vm, (b_obj *)handler.klass);
+      }
+    }
+    for (b_obj_up_value *up_value = next_thread->open_up_values; up_value != NULL;
+         up_value = up_value->next) {
+      mark_object(vm, (b_obj *) up_value);
+    }
+    next_thread = next_thread->next;
   }
 
-  if(vm->thread == NULL) {
-    mark_table(vm, &vm->globals);
-    mark_table(vm, &vm->modules);
+  mark_table(vm, &vm->globals);
+  mark_table(vm, &vm->modules);
 
-    mark_table(vm, &vm->methods_string);
-    mark_table(vm, &vm->methods_bytes);
-    mark_table(vm, &vm->methods_file);
-    mark_table(vm, &vm->methods_list);
-    mark_table(vm, &vm->methods_dict);
-    mark_table(vm, &vm->methods_range);
+  mark_table(vm, &vm->methods_string);
+  mark_table(vm, &vm->methods_bytes);
+  mark_table(vm, &vm->methods_file);
+  mark_table(vm, &vm->methods_list);
+  mark_table(vm, &vm->methods_dict);
+  mark_table(vm, &vm->methods_range);
 
-    mark_object(vm, (b_obj *) vm->exception_class);
-  }
+  mark_object(vm, (b_obj *) vm->exception_class);
   mark_compiler_roots(vm);
 }
 
@@ -374,6 +378,15 @@ static void sweep(b_vm *vm) {
       free_object(vm, unreached);
     }
   }
+
+  b_vm_thread *next_th = vm->thread;
+  while(next_th != NULL) {
+    b_vm_thread *next = next_th->next;
+    if(!next_th->th) {
+      free_vm_thread(next_th);
+    }
+    next_th = next;
+  }
 }
 
 void free_objects(b_vm *vm) {
@@ -386,7 +399,6 @@ void free_objects(b_vm *vm) {
 
   free(vm->gray_stack);
   vm->gray_stack = NULL;
-  vm->next = NULL;
 }
 
 void collect_garbage(b_vm *vm) {
@@ -394,23 +406,6 @@ void collect_garbage(b_vm *vm) {
   printf("-- gc begins\n");
   size_t before = vm->bytes_allocated;
 #endif
-
-  b_vm *next_vm = vm->next;
-  while(next_vm != NULL) {
-    b_vm *next = next_vm->next;
-
-    if(next->bytes_allocated >= next_vm->next_gc) {
-      mark_roots(next_vm);
-      trace_references(next_vm);
-      sweep(next_vm);
-
-      next_vm->next_gc = (size_t) ((double) next_vm->bytes_allocated * GC_HEAP_GROWTH_FACTOR);
-      next_vm->mark_value = !next_vm->mark_value;
-    }
-
-    next_vm = next;
-  }
-
   mark_roots(vm);
   trace_references(vm);
   table_remove_whites(vm, &vm->strings);

@@ -214,7 +214,7 @@ DECLARE_MODULE_METHOD(sqlite__cursor_columns) {
   ENFORCE_ARG_COUNT(_cursor_colcount, 1);
   ENFORCE_ARG_TYPE(_cursor_colcount, 0, IS_PTR);
   sqlite3_stmt *stmt = AS_PTR(args[0])->pointer;
-  b_obj_list *list = (b_obj_list*)GC(new_list(vm));
+  b_obj_list *list = (b_obj_list*)GC(new_list(vm, th));
   if(stmt != NULL) {
     int count = sqlite3_column_count(stmt);
     for(int i = 0; i < count; i++) {

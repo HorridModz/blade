@@ -53,7 +53,7 @@ DECLARE_DICT_METHOD(clear) {
 DECLARE_DICT_METHOD(clone) {
   ENFORCE_ARG_COUNT(clone, 0);
   b_obj_dict *dict = AS_DICT(METHOD_OBJECT);
-  b_obj_dict *n_dict = (b_obj_dict *) GC(new_dict(vm));
+  b_obj_dict *n_dict = (b_obj_dict *) GC(new_dict(vm, th));
 
   table_add_all(vm, &dict->items, &n_dict->items);
 
@@ -67,7 +67,7 @@ DECLARE_DICT_METHOD(clone) {
 DECLARE_DICT_METHOD(compact) {
   ENFORCE_ARG_COUNT(compact, 0);
   b_obj_dict *dict = AS_DICT(METHOD_OBJECT);
-  b_obj_dict *n_dict = (b_obj_dict *) GC(new_dict(vm));
+  b_obj_dict *n_dict = (b_obj_dict *) GC(new_dict(vm, th));
 
   for (int i = 0; i < dict->names.count; i++) {
     b_value tmp_value;
@@ -97,7 +97,10 @@ DECLARE_DICT_METHOD(extend) {
   b_obj_dict *dict_cpy = AS_DICT(args[0]);
 
   for (int i = 0; i < dict_cpy->names.count; i++) {
-    write_value_arr(vm, &dict->names, dict_cpy->names.values[i]);
+    b_value tmp;
+    if(!table_get(&dict->items, dict_cpy->names.values[i], &tmp)) {
+      write_value_arr(vm, &dict->names, dict_cpy->names.values[i]);
+    }
   }
   table_add_all(vm, &dict_cpy->items, &dict->items);
   RETURN;
@@ -123,7 +126,7 @@ DECLARE_DICT_METHOD(get) {
 DECLARE_DICT_METHOD(keys) {
   ENFORCE_ARG_COUNT(keys, 0);
   b_obj_dict *dict = AS_DICT(METHOD_OBJECT);
-  b_obj_list *list = (b_obj_list *) GC(new_list(vm));
+  b_obj_list *list = (b_obj_list *) GC(new_list(vm, th));
   for (int i = 0; i < dict->names.count; i++) {
     write_list(vm, list, dict->names.values[i]);
   }
@@ -133,7 +136,7 @@ DECLARE_DICT_METHOD(keys) {
 DECLARE_DICT_METHOD(values) {
   ENFORCE_ARG_COUNT(values, 0);
   b_obj_dict *dict = AS_DICT(METHOD_OBJECT);
-  b_obj_list *list = (b_obj_list *) GC(new_list(vm));
+  b_obj_list *list = (b_obj_list *) GC(new_list(vm, th));
   for (int i = 0; i < dict->names.count; i++) {
     b_value tmp_value;
     dict_get_entry(dict, dict->names.values[i], &tmp_value);
@@ -181,8 +184,8 @@ DECLARE_DICT_METHOD(to_list) {
   ENFORCE_ARG_COUNT(to_list, 0);
 
   b_obj_dict *dict = AS_DICT(METHOD_OBJECT);
-  b_obj_list *name_list = (b_obj_list *) GC(new_list(vm));
-  b_obj_list *value_list = (b_obj_list *) GC(new_list(vm));
+  b_obj_list *name_list = (b_obj_list *) GC(new_list(vm, th));
+  b_obj_list *value_list = (b_obj_list *) GC(new_list(vm, th));
   for (int i = 0; i < dict->names.count; i++) {
     write_list(vm, name_list, dict->names.values[i]);
     b_value value;
@@ -193,7 +196,7 @@ DECLARE_DICT_METHOD(to_list) {
     }
   }
 
-  b_obj_list *list = (b_obj_list *) GC(new_list(vm));
+  b_obj_list *list = (b_obj_list *) GC(new_list(vm, th));
   write_list(vm, list, OBJ_VAL(name_list));
   write_list(vm, list, OBJ_VAL(value_list));
 

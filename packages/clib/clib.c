@@ -414,7 +414,7 @@ DECLARE_MODULE_METHOD(clib_get) {
     data = AS_BYTES(args[1])->bytes.bytes;
   }
 
-  b_obj_list *list = (b_obj_list *)GC(new_list(vm));
+  b_obj_list *list = (b_obj_list *)GC(new_list(vm, th));
 
   size_t read_len = 0;
   for(int i = 0; i < type->length; i++) {
@@ -469,7 +469,7 @@ DECLARE_MODULE_METHOD(clib_get) {
   }
 
   if(type->names != NULL) {
-    b_obj_dict *dict = (b_obj_dict *)GC(new_dict(vm));
+    b_obj_dict *dict = (b_obj_dict *)GC(new_dict(vm, th));
     for(int i = 0; i < type->length; i++) {
       dict_add_entry(vm, dict, type->names->items.values[i], list->items.values[i]);
     }

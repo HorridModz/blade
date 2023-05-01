@@ -508,32 +508,32 @@ void sort_values(b_value *values, int count) {
   }
 }
 
-b_value copy_value(b_vm *vm, b_value value) {
+b_value copy_value(b_vm *vm, b_vm_thread *th, b_value value) {
   if(IS_OBJ(value)) {
     switch (AS_OBJ(value)->type) {
       case OBJ_STRING: {
         b_obj_string *string = AS_STRING(value);
-        return OBJ_VAL(copy_string(vm, string->chars, string->length));
+        return OBJ_VAL(copy_string(vm, th, string->chars, string->length));
       }
       case OBJ_BYTES: {
         b_obj_bytes *bytes = AS_BYTES(value);
-        return OBJ_VAL(copy_bytes(vm, bytes->bytes.bytes, bytes->bytes.count));
+        return OBJ_VAL(copy_bytes(vm, th, bytes->bytes.bytes, bytes->bytes.count));
       }
       case OBJ_LIST: {
         b_obj_list *list = AS_LIST(value);
-        b_obj_list *n_list = new_list(vm);
-        push(vm, OBJ_VAL(n_list));
+        b_obj_list *n_list = new_list(vm, th);
+        push(th, OBJ_VAL(n_list));
 
         for (int i = 0; i < list->items.count; i++) {
           write_value_arr(vm, &n_list->items, list->items.values[i]);
         }
 
-        pop(vm);
+        pop(th);
         return OBJ_VAL(n_list);
       }
       /*case OBJ_DICT: {
         b_obj_dict *dict = AS_DICT(value);
-        b_obj_dict *n_dict = new_dict(vm);
+        b_obj_dict *n_dict = new_dict(vm, th);
 
         // @TODO: Figure out how to handle dictionary values correctly
         // remember that copying keys is redundant and unnecessary

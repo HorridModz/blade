@@ -703,7 +703,7 @@ too_few_args:
   free(formatargs);
   output[outputpos] = '\0';
 
-  b_obj_bytes *bytes = (b_obj_bytes *)GC(take_bytes(vm, output, outputpos));
+  b_obj_bytes *bytes = (b_obj_bytes *)GC(take_bytes(vm, th, output, outputpos));
   RETURN_OBJ(bytes);
 }
 
@@ -731,7 +731,7 @@ DECLARE_MODULE_METHOD(struct_unpack) {
   input += offset;
   inputlen -= offset;
 
-  b_obj_dict *return_value = (b_obj_dict *)GC(new_dict(vm));
+  b_obj_dict *return_value = (b_obj_dict *)GC(new_dict(vm, th));
 
   while (formatlen-- > 0) {
     char type = *(format++);

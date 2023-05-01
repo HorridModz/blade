@@ -233,7 +233,7 @@ DECLARE_MODULE_METHOD(socket__accept) {
   char *ip = inet_ntoa(client.sin_addr);
   int port = (int) ntohs(client.sin_port);
 
-  b_obj_list *response = new_list(vm);
+  b_obj_list *response = new_list(vm, th);
   write_list(vm, response, NUMBER_VAL(new_sock));
   write_list(vm, response, STRING_VAL(ip));
   write_list(vm, response, NUMBER_VAL(port));
@@ -462,7 +462,7 @@ DECLARE_MODULE_METHOD(socket__getsockinfo) {
   struct sockaddr_in address;
   memset(&address, 0, sizeof(address));
 
-  b_obj_dict *dict = (b_obj_dict *) GC(new_dict(vm));
+  b_obj_dict *dict = (b_obj_dict *) GC(new_dict(vm, th));
 
   int length = sizeof address;
   if (getsockname(sock, (struct sockaddr *) &address, (socklen_t *) &length) >= 0) {
@@ -514,7 +514,7 @@ DECLARE_MODULE_METHOD(socket__getaddrinfo) {
     while (res) {
       if (res->ai_family == family) {
 
-        b_obj_dict *dict = (b_obj_dict *) GC(new_dict(vm));
+        b_obj_dict *dict = (b_obj_dict *) GC(new_dict(vm, th));
         if (res->ai_canonname != NULL) {
           dict_add_entry(vm, dict, GC_L_STRING("cannon_name", 11), GC_STRING(res->ai_canonname));
         } else {
@@ -605,7 +605,7 @@ void __socket_module_preloader(b_vm *vm) {
 /** START SOCKET CONSTANTS */
 
 //  stream socket
-b_value __socket_SOCK_STREAM(b_vm *vm) {
+b_value __socket_SOCK_STREAM(b_vm *vm, b_vm_thread *th) {
 #ifdef SOCK_STREAM
   return NUMBER_VAL(SOCK_STREAM);
 #else
@@ -614,7 +614,7 @@ b_value __socket_SOCK_STREAM(b_vm *vm) {
 }
 
 //  datagram socket
-b_value __socket_SOCK_DGRAM(b_vm *vm) {
+b_value __socket_SOCK_DGRAM(b_vm *vm, b_vm_thread *th) {
 #ifdef SOCK_DGRAM
   return NUMBER_VAL(SOCK_DGRAM);
 #else
@@ -623,7 +623,7 @@ b_value __socket_SOCK_DGRAM(b_vm *vm) {
 }
 
 //  raw-protocol interface
-b_value __socket_SOCK_RAW(b_vm *vm) {
+b_value __socket_SOCK_RAW(b_vm *vm, b_vm_thread *th) {
 #ifdef SOCK_RAW
   return NUMBER_VAL(SOCK_RAW);
 #else
@@ -632,7 +632,7 @@ b_value __socket_SOCK_RAW(b_vm *vm) {
 }
 
 //  reliably-delivered message
-b_value __socket_SOCK_RDM(b_vm *vm) {
+b_value __socket_SOCK_RDM(b_vm *vm, b_vm_thread *th) {
 #ifdef SOCK_RDM
   return NUMBER_VAL(SOCK_RDM);
 #else
@@ -641,7 +641,7 @@ b_value __socket_SOCK_RDM(b_vm *vm) {
 }
 
 //  sequenced packet stream
-b_value __socket_SOCK_SEQPACKET(b_vm *vm) {
+b_value __socket_SOCK_SEQPACKET(b_vm *vm, b_vm_thread *th) {
 #ifdef SOCK_SEQPACKET
   return NUMBER_VAL(SOCK_SEQPACKET);
 #else
@@ -651,7 +651,7 @@ b_value __socket_SOCK_SEQPACKET(b_vm *vm) {
 
 
 //  turn on debugging info recording
-b_value __socket_SO_DEBUG(b_vm *vm) {
+b_value __socket_SO_DEBUG(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_DEBUG
   return NUMBER_VAL(SO_DEBUG);
 #else
@@ -660,7 +660,7 @@ b_value __socket_SO_DEBUG(b_vm *vm) {
 }
 
 //  socket has had listen()
-b_value __socket_SO_ACCEPTCONN(b_vm *vm) {
+b_value __socket_SO_ACCEPTCONN(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_ACCEPTCONN
   return NUMBER_VAL(SO_ACCEPTCONN);
 #else
@@ -669,7 +669,7 @@ b_value __socket_SO_ACCEPTCONN(b_vm *vm) {
 }
 
 //  allow local address reuse
-b_value __socket_SO_REUSEADDR(b_vm *vm) {
+b_value __socket_SO_REUSEADDR(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_REUSEADDR
   return NUMBER_VAL(SO_REUSEADDR);
 #else
@@ -678,7 +678,7 @@ b_value __socket_SO_REUSEADDR(b_vm *vm) {
 }
 
 //  keep connections alive
-b_value __socket_SO_KEEPALIVE(b_vm *vm) {
+b_value __socket_SO_KEEPALIVE(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_KEEPALIVE
   return NUMBER_VAL(SO_KEEPALIVE);
 #else
@@ -687,7 +687,7 @@ b_value __socket_SO_KEEPALIVE(b_vm *vm) {
 }
 
 //  just use interface addresses
-b_value __socket_SO_DONTROUTE(b_vm *vm) {
+b_value __socket_SO_DONTROUTE(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_DONTROUTE
   return NUMBER_VAL(SO_DONTROUTE);
 #else
@@ -696,7 +696,7 @@ b_value __socket_SO_DONTROUTE(b_vm *vm) {
 }
 
 //  permit sending of broadcast msgs
-b_value __socket_SO_BROADCAST(b_vm *vm) {
+b_value __socket_SO_BROADCAST(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_BROADCAST
   return NUMBER_VAL(SO_BROADCAST);
 #else
@@ -705,7 +705,7 @@ b_value __socket_SO_BROADCAST(b_vm *vm) {
 }
 
 //  bypass hardware when possible
-b_value __socket_SO_USELOOPBACK(b_vm *vm) {
+b_value __socket_SO_USELOOPBACK(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_USELOOPBACK
   return NUMBER_VAL(SO_USELOOPBACK);
 #else
@@ -714,7 +714,7 @@ b_value __socket_SO_USELOOPBACK(b_vm *vm) {
 }
 
 //  linger on close if data present (in ticks)
-b_value __socket_SO_LINGER(b_vm *vm) {
+b_value __socket_SO_LINGER(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_LINGER
   return NUMBER_VAL(SO_LINGER);
 #else
@@ -723,7 +723,7 @@ b_value __socket_SO_LINGER(b_vm *vm) {
 }
 
 //  leave received OOB data in line
-b_value __socket_SO_OOBINLINE(b_vm *vm) {
+b_value __socket_SO_OOBINLINE(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_OOBINLINE
   return NUMBER_VAL(SO_OOBINLINE);
 #else
@@ -732,7 +732,7 @@ b_value __socket_SO_OOBINLINE(b_vm *vm) {
 }
 
 //  allow local address & port reuse
-b_value __socket_SO_REUSEPORT(b_vm *vm) {
+b_value __socket_SO_REUSEPORT(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_REUSEPORT
   return NUMBER_VAL(SO_REUSEPORT);
 #else
@@ -741,7 +741,7 @@ b_value __socket_SO_REUSEPORT(b_vm *vm) {
 }
 
 //  timestamp received dgram traffic
-b_value __socket_SO_TIMESTAMP(b_vm *vm) {
+b_value __socket_SO_TIMESTAMP(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_TIMESTAMP
   return NUMBER_VAL(SO_TIMESTAMP);
 #else
@@ -751,7 +751,7 @@ b_value __socket_SO_TIMESTAMP(b_vm *vm) {
 
 
 //  send buffer size
-b_value __socket_SO_SNDBUF(b_vm *vm) {
+b_value __socket_SO_SNDBUF(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_SNDBUF
   return NUMBER_VAL(SO_SNDBUF);
 #else
@@ -760,7 +760,7 @@ b_value __socket_SO_SNDBUF(b_vm *vm) {
 }
 
 //  receive buffer size
-b_value __socket_SO_RCVBUF(b_vm *vm) {
+b_value __socket_SO_RCVBUF(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_RCVBUF
   return NUMBER_VAL(SO_RCVBUF);
 #else
@@ -769,7 +769,7 @@ b_value __socket_SO_RCVBUF(b_vm *vm) {
 }
 
 //  send low-water mark
-b_value __socket_SO_SNDLOWAT(b_vm *vm) {
+b_value __socket_SO_SNDLOWAT(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_SNDLOWAT
   return NUMBER_VAL(SO_SNDLOWAT);
 #else
@@ -778,7 +778,7 @@ b_value __socket_SO_SNDLOWAT(b_vm *vm) {
 }
 
 //  receive low-water mark
-b_value __socket_SO_RCVLOWAT(b_vm *vm) {
+b_value __socket_SO_RCVLOWAT(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_RCVLOWAT
   return NUMBER_VAL(SO_RCVLOWAT);
 #else
@@ -787,7 +787,7 @@ b_value __socket_SO_RCVLOWAT(b_vm *vm) {
 }
 
 //  send timeout
-b_value __socket_SO_SNDTIMEO(b_vm *vm) {
+b_value __socket_SO_SNDTIMEO(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_SNDTIMEO
   return NUMBER_VAL(SO_SNDTIMEO);
 #else
@@ -796,7 +796,7 @@ b_value __socket_SO_SNDTIMEO(b_vm *vm) {
 }
 
 //  receive timeout
-b_value __socket_SO_RCVTIMEO(b_vm *vm) {
+b_value __socket_SO_RCVTIMEO(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_RCVTIMEO
   return NUMBER_VAL(SO_RCVTIMEO);
 #else
@@ -805,7 +805,7 @@ b_value __socket_SO_RCVTIMEO(b_vm *vm) {
 }
 
 //  get error status and clear
-b_value __socket_SO_ERROR(b_vm *vm) {
+b_value __socket_SO_ERROR(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_ERROR
   return NUMBER_VAL(SO_ERROR);
 #else
@@ -814,7 +814,7 @@ b_value __socket_SO_ERROR(b_vm *vm) {
 }
 
 //  get socket type
-b_value __socket_SO_TYPE(b_vm *vm) {
+b_value __socket_SO_TYPE(b_vm *vm, b_vm_thread *th) {
 #ifdef SO_TYPE
   return NUMBER_VAL(SO_TYPE);
 #else
@@ -825,7 +825,7 @@ b_value __socket_SO_TYPE(b_vm *vm) {
 
 
 //  options for socket level
-b_value __socket_SOL_SOCKET(b_vm *vm) {
+b_value __socket_SOL_SOCKET(b_vm *vm, b_vm_thread *th) {
 #ifdef SOL_SOCKET
   return NUMBER_VAL(SOL_SOCKET);
 #else
@@ -835,7 +835,7 @@ b_value __socket_SOL_SOCKET(b_vm *vm) {
 
 
 //  unspecified
-b_value __socket_AF_UNSPEC(b_vm *vm) {
+b_value __socket_AF_UNSPEC(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_UNSPEC
   return NUMBER_VAL(AF_UNSPEC);
 #else
@@ -844,7 +844,7 @@ b_value __socket_AF_UNSPEC(b_vm *vm) {
 }
 
 //  local to host (pipes)
-b_value __socket_AF_UNIX(b_vm *vm) {
+b_value __socket_AF_UNIX(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_UNIX
   return NUMBER_VAL(AF_UNIX);
 #else
@@ -853,7 +853,7 @@ b_value __socket_AF_UNIX(b_vm *vm) {
 }
 
 //  same as AF_UNIX
-b_value __socket_AF_LOCAL(b_vm *vm) {
+b_value __socket_AF_LOCAL(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_LOCAL
   return NUMBER_VAL(AF_LOCAL);
 #else
@@ -862,7 +862,7 @@ b_value __socket_AF_LOCAL(b_vm *vm) {
 }
 
 //  internetwork: UDP, TCP, etc.
-b_value __socket_AF_INET(b_vm *vm) {
+b_value __socket_AF_INET(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_INET
   return NUMBER_VAL(AF_INET);
 #else
@@ -871,7 +871,7 @@ b_value __socket_AF_INET(b_vm *vm) {
 }
 
 //  arpanet imp addresses
-b_value __socket_AF_IMPLINK(b_vm *vm) {
+b_value __socket_AF_IMPLINK(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_IMPLINK
   return NUMBER_VAL(AF_IMPLINK);
 #else
@@ -880,7 +880,7 @@ b_value __socket_AF_IMPLINK(b_vm *vm) {
 }
 
 //  pup protocols: e.g. BSP
-b_value __socket_AF_PUP(b_vm *vm) {
+b_value __socket_AF_PUP(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_PUP
   return NUMBER_VAL(AF_PUP);
 #else
@@ -889,7 +889,7 @@ b_value __socket_AF_PUP(b_vm *vm) {
 }
 
 //  mit CHAOS protocols
-b_value __socket_AF_CHAOS(b_vm *vm) {
+b_value __socket_AF_CHAOS(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_CHAOS
   return NUMBER_VAL(AF_CHAOS);
 #else
@@ -898,7 +898,7 @@ b_value __socket_AF_CHAOS(b_vm *vm) {
 }
 
 //  XEROX NS protocols
-b_value __socket_AF_NS(b_vm *vm) {
+b_value __socket_AF_NS(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_NS
   return NUMBER_VAL(AF_NS);
 #else
@@ -907,7 +907,7 @@ b_value __socket_AF_NS(b_vm *vm) {
 }
 
 //  ISO protocols
-b_value __socket_AF_ISO(b_vm *vm) {
+b_value __socket_AF_ISO(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_ISO
   return NUMBER_VAL(AF_ISO);
 #else
@@ -916,7 +916,7 @@ b_value __socket_AF_ISO(b_vm *vm) {
 }
 
 //  OSI protocols (same as ISO)
-b_value __socket_AF_OSI(b_vm *vm) {
+b_value __socket_AF_OSI(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_OSI
   return NUMBER_VAL(AF_OSI);
 #else
@@ -925,7 +925,7 @@ b_value __socket_AF_OSI(b_vm *vm) {
 }
 
 //  European computer manufacturers
-b_value __socket_AF_ECMA(b_vm *vm) {
+b_value __socket_AF_ECMA(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_ECMA
   return NUMBER_VAL(AF_ECMA);
 #else
@@ -934,7 +934,7 @@ b_value __socket_AF_ECMA(b_vm *vm) {
 }
 
 //  datakit protocols
-b_value __socket_AF_DATAKIT(b_vm *vm) {
+b_value __socket_AF_DATAKIT(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_DATAKIT
   return NUMBER_VAL(AF_DATAKIT);
 #else
@@ -943,7 +943,7 @@ b_value __socket_AF_DATAKIT(b_vm *vm) {
 }
 
 //  CITT protocols, X.25 etc
-b_value __socket_AF_CCITT(b_vm *vm) {
+b_value __socket_AF_CCITT(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_CCITT
   return NUMBER_VAL(AF_CCITT);
 #else
@@ -952,7 +952,7 @@ b_value __socket_AF_CCITT(b_vm *vm) {
 }
 
 //  IBM SNA
-b_value __socket_AF_SNA(b_vm *vm) {
+b_value __socket_AF_SNA(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_SNA
   return NUMBER_VAL(AF_SNA);
 #else
@@ -961,7 +961,7 @@ b_value __socket_AF_SNA(b_vm *vm) {
 }
 
 //  DECnet
-b_value __socket_AF_DECnet(b_vm *vm) {
+b_value __socket_AF_DECnet(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_DECnet
   return NUMBER_VAL(AF_DECnet);
 #else
@@ -970,7 +970,7 @@ b_value __socket_AF_DECnet(b_vm *vm) {
 }
 
 //  DEC Direct data link interface
-b_value __socket_AF_DLI(b_vm *vm) {
+b_value __socket_AF_DLI(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_DLI
   return NUMBER_VAL(AF_DLI);
 #else
@@ -979,7 +979,7 @@ b_value __socket_AF_DLI(b_vm *vm) {
 }
 
 //  LAT
-b_value __socket_AF_LAT(b_vm *vm) {
+b_value __socket_AF_LAT(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_LAT
   return NUMBER_VAL(AF_LAT);
 #else
@@ -988,7 +988,7 @@ b_value __socket_AF_LAT(b_vm *vm) {
 }
 
 //  NSC Hyperchannel
-b_value __socket_AF_HYLINK(b_vm *vm) {
+b_value __socket_AF_HYLINK(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_HYLINK
   return NUMBER_VAL(AF_HYLINK);
 #else
@@ -997,7 +997,7 @@ b_value __socket_AF_HYLINK(b_vm *vm) {
 }
 
 //  AppleTalk
-b_value __socket_AF_APPLETALK(b_vm *vm) {
+b_value __socket_AF_APPLETALK(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_APPLETALK
   return NUMBER_VAL(AF_APPLETALK);
 #else
@@ -1006,7 +1006,7 @@ b_value __socket_AF_APPLETALK(b_vm *vm) {
 }
 
 //  ipv6
-b_value __socket_AF_INET6(b_vm *vm) {
+b_value __socket_AF_INET6(b_vm *vm, b_vm_thread *th) {
 #ifdef AF_INET6
   return NUMBER_VAL(AF_INET6);
 #else
@@ -1016,7 +1016,7 @@ b_value __socket_AF_INET6(b_vm *vm) {
 
 
 //   Dummy protocol for TCP.
-b_value __socket_IPPROTO_IP(b_vm *vm) {
+b_value __socket_IPPROTO_IP(b_vm *vm, b_vm_thread *th) {
 #ifdef IPPROTO_IP
   return NUMBER_VAL(IPPROTO_IP);
 #else
@@ -1025,17 +1025,17 @@ b_value __socket_IPPROTO_IP(b_vm *vm) {
 }
 
 //   Internet Control Message Protocol.
-b_value __socket_IPPROTO_ICMP(b_vm *vm) {
+b_value __socket_IPPROTO_ICMP(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(IPPROTO_ICMP);
 }
 
 //   Internet Group Management Protocol.
-b_value __socket_IPPROTO_IGMP(b_vm *vm) {
+b_value __socket_IPPROTO_IGMP(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(IPPROTO_IGMP);
 }
 
 //   IPIP tunnels (older KA9Q tunnels use 94).
-b_value __socket_IPPROTO_IPIP(b_vm *vm) {
+b_value __socket_IPPROTO_IPIP(b_vm *vm, b_vm_thread *th) {
 #ifdef IPPROTO_IPIP
   return NUMBER_VAL(IPPROTO_IPIP);
 #else
@@ -1044,12 +1044,12 @@ b_value __socket_IPPROTO_IPIP(b_vm *vm) {
 }
 
 //   Transmission Control Protocol.
-b_value __socket_IPPROTO_TCP(b_vm *vm) {
+b_value __socket_IPPROTO_TCP(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(IPPROTO_TCP);
 }
 
 //   Exterior Gateway Protocol.
-b_value __socket_IPPROTO_EGP(b_vm *vm) {
+b_value __socket_IPPROTO_EGP(b_vm *vm, b_vm_thread *th) {
 #ifdef IPPROTO_EGP
   return NUMBER_VAL(IPPROTO_EGP);
 #else
@@ -1058,22 +1058,22 @@ b_value __socket_IPPROTO_EGP(b_vm *vm) {
 }
 
 //   PUP protocol.
-b_value __socket_IPPROTO_PUP(b_vm *vm) {
+b_value __socket_IPPROTO_PUP(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(IPPROTO_PUP);
 }
 
 //   User Datagram Protocol.
-b_value __socket_IPPROTO_UDP(b_vm *vm) {
+b_value __socket_IPPROTO_UDP(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(IPPROTO_UDP);
 }
 
 //   XNS IDP protocol.
-b_value __socket_IPPROTO_IDP(b_vm *vm) {
+b_value __socket_IPPROTO_IDP(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(IPPROTO_IDP);
 }
 
 //   SO Transport Protocol Class 4.
-b_value __socket_IPPROTO_TP(b_vm *vm) {
+b_value __socket_IPPROTO_TP(b_vm *vm, b_vm_thread *th) {
 #ifdef IPPROTO_TP
   return NUMBER_VAL(IPPROTO_TP);
 #else
@@ -1082,7 +1082,7 @@ b_value __socket_IPPROTO_TP(b_vm *vm) {
 }
 
 //   Datagram Congestion Control Protocol.
-b_value __socket_IPPROTO_DCCP(b_vm *vm) {
+b_value __socket_IPPROTO_DCCP(b_vm *vm, b_vm_thread *th) {
 #ifdef IPPROTO_DCCP
   return NUMBER_VAL(IPPROTO_DCCP);
 #else
@@ -1091,12 +1091,12 @@ b_value __socket_IPPROTO_DCCP(b_vm *vm) {
 }
 
 //   IPv6 header.
-b_value __socket_IPPROTO_IPV6(b_vm *vm) {
+b_value __socket_IPPROTO_IPV6(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(IPPROTO_IPV6);
 }
 
 //   Reservation Protocol.
-b_value __socket_IPPROTO_RSVP(b_vm *vm) {
+b_value __socket_IPPROTO_RSVP(b_vm *vm, b_vm_thread *th) {
 #ifdef IPPROTO_RSVP
   return NUMBER_VAL(IPPROTO_RSVP);
 #else
@@ -1105,7 +1105,7 @@ b_value __socket_IPPROTO_RSVP(b_vm *vm) {
 }
 
 //   General Routing Encapsulation.
-b_value __socket_IPPROTO_GRE(b_vm *vm) {
+b_value __socket_IPPROTO_GRE(b_vm *vm, b_vm_thread *th) {
 #ifdef IPPROTO_GRE
   return NUMBER_VAL(IPPROTO_GRE);
 #else
@@ -1114,17 +1114,17 @@ b_value __socket_IPPROTO_GRE(b_vm *vm) {
 }
 
 //   encapsulating security payload.
-b_value __socket_IPPROTO_ESP(b_vm *vm) {
+b_value __socket_IPPROTO_ESP(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(IPPROTO_ESP);
 }
 
 //   authentication header.
-b_value __socket_IPPROTO_AH(b_vm *vm) {
+b_value __socket_IPPROTO_AH(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(IPPROTO_AH);
 }
 
 //   Multicast Transport Protocol.
-b_value __socket_IPPROTO_MTP(b_vm *vm) {
+b_value __socket_IPPROTO_MTP(b_vm *vm, b_vm_thread *th) {
 #ifdef IPPROTO_MTP
   return NUMBER_VAL(IPPROTO_MTP);
 #else
@@ -1133,7 +1133,7 @@ b_value __socket_IPPROTO_MTP(b_vm *vm) {
 }
 
 //   IP option pseudo header for BEET.
-b_value __socket_IPPROTO_BEETPH(b_vm *vm) {
+b_value __socket_IPPROTO_BEETPH(b_vm *vm, b_vm_thread *th) {
 #ifdef IPPROTO_BEETPH
   return NUMBER_VAL(IPPROTO_BEETPH);
 #else
@@ -1142,7 +1142,7 @@ b_value __socket_IPPROTO_BEETPH(b_vm *vm) {
 }
 
 //   Encapsulation Header.
-b_value __socket_IPPROTO_ENCAP(b_vm *vm) {
+b_value __socket_IPPROTO_ENCAP(b_vm *vm, b_vm_thread *th) {
 #ifdef IPPROTO_ENCAP
   return NUMBER_VAL(IPPROTO_ENCAP);
 #else
@@ -1151,12 +1151,12 @@ b_value __socket_IPPROTO_ENCAP(b_vm *vm) {
 }
 
 //   Protocol Independent Multicast.
-b_value __socket_IPPROTO_PIM(b_vm *vm) {
+b_value __socket_IPPROTO_PIM(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(IPPROTO_PIM);
 }
 
 //   Compression Header Protocol.
-b_value __socket_IPPROTO_COMP(b_vm *vm) {
+b_value __socket_IPPROTO_COMP(b_vm *vm, b_vm_thread *th) {
 #ifdef IPPROTO_COMP
   return NUMBER_VAL(IPPROTO_COMP);
 #else
@@ -1165,12 +1165,12 @@ b_value __socket_IPPROTO_COMP(b_vm *vm) {
 }
 
 //   Stream Control Transmission Protocol.
-b_value __socket_IPPROTO_SCTP(b_vm *vm) {
+b_value __socket_IPPROTO_SCTP(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(IPPROTO_SCTP);
 }
 
 //   UDP-Lite protocol.
-b_value __socket_IPPROTO_UDPLITE(b_vm *vm) {
+b_value __socket_IPPROTO_UDPLITE(b_vm *vm, b_vm_thread *th) {
 #ifdef IPPROTO_UDPLITE
   return NUMBER_VAL(IPPROTO_UDPLITE);
 #else
@@ -1179,7 +1179,7 @@ b_value __socket_IPPROTO_UDPLITE(b_vm *vm) {
 }
 
 //   MPLS in IP.
-b_value __socket_IPPROTO_MPLS(b_vm *vm) {
+b_value __socket_IPPROTO_MPLS(b_vm *vm, b_vm_thread *th) {
 #ifdef IPPROTO_MPLS
   return NUMBER_VAL(IPPROTO_MPLS);
 #else
@@ -1188,18 +1188,18 @@ b_value __socket_IPPROTO_MPLS(b_vm *vm) {
 }
 
 //   Raw IP packets.
-b_value __socket_IPPROTO_RAW(b_vm *vm) {
+b_value __socket_IPPROTO_RAW(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(IPPROTO_RAW);
 }
 
 //  max IP proto
-b_value __socket_IPPROTO_MAX(b_vm *vm) {
+b_value __socket_IPPROTO_MAX(b_vm *vm, b_vm_thread *th) {
   return NUMBER_VAL(IPPROTO_MAX);
 }
 
 
 //  shut down the reading side
-b_value __socket_SHUT_RD(b_vm *vm) {
+b_value __socket_SHUT_RD(b_vm *vm, b_vm_thread *th) {
 #ifdef SHUT_RD
   return NUMBER_VAL(SHUT_RD);
 #else
@@ -1208,7 +1208,7 @@ b_value __socket_SHUT_RD(b_vm *vm) {
 }
 
 //  shut down the writing side
-b_value __socket_SHUT_WR(b_vm *vm) {
+b_value __socket_SHUT_WR(b_vm *vm, b_vm_thread *th) {
 #ifdef SHUT_WR
   return NUMBER_VAL(SHUT_WR);
 #else
@@ -1217,7 +1217,7 @@ b_value __socket_SHUT_WR(b_vm *vm) {
 }
 
 //  shut down both sides
-b_value __socket_SHUT_RDWR(b_vm *vm) {
+b_value __socket_SHUT_RDWR(b_vm *vm, b_vm_thread *th) {
 #ifdef SHUT_RDWR
   return NUMBER_VAL(SHUT_RDWR);
 #else
@@ -1227,7 +1227,7 @@ b_value __socket_SHUT_RDWR(b_vm *vm) {
 
 
 //  Maximum queue length specifiable by listen.
-b_value __socket_SOMAXCONN(b_vm *vm) {
+b_value __socket_SOMAXCONN(b_vm *vm, b_vm_thread *th) {
 #ifdef SOMAXCONN
   return NUMBER_VAL(SOMAXCONN);
 #else

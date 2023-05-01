@@ -101,7 +101,7 @@ DECLARE_MODULE_METHOD(io_tty__tcgetattr) {
   }
 
   // we have our attributes already
-  b_obj_dict *dict = (b_obj_dict *)GC(new_dict(vm));
+  b_obj_dict *dict = (b_obj_dict *)GC(new_dict(vm, th));
   dict_add_entry(vm, dict, NUMBER_VAL(0), NUMBER_VAL(raw_attr.c_iflag));
   dict_add_entry(vm, dict, NUMBER_VAL(1), NUMBER_VAL(raw_attr.c_oflag));
   dict_add_entry(vm, dict, NUMBER_VAL(2), NUMBER_VAL(raw_attr.c_cflag));
@@ -326,9 +326,9 @@ DECLARE_MODULE_METHOD(io_putc) {
  *
  * returns the standard input
  */
-b_value io_module_stdin(b_vm *vm) {
+b_value io_module_stdin(b_vm *vm, b_vm_thread *th) {
   b_obj_file *file =
-      new_file(vm, copy_string(vm, "<stdin>", 7), copy_string(vm, "r", 1));
+      new_file(vm, th, copy_string(vm, th, "<stdin>", 7), copy_string(vm, th, "r", 1));
   file->file = stdin;
   file->is_open = true;
   file->is_std = true;
@@ -342,9 +342,9 @@ b_value io_module_stdin(b_vm *vm) {
  *
  * returns the standard output interface
  */
-b_value io_module_stdout(b_vm *vm) {
+b_value io_module_stdout(b_vm *vm, b_vm_thread *th) {
   b_obj_file *file =
-      new_file(vm, copy_string(vm, "<stdout>", 8), copy_string(vm, "wb", 2));
+      new_file(vm, th, copy_string(vm, th, "<stdout>", 8), copy_string(vm, th, "wb", 2));
   file->file = stdout;
   file->is_open = true;
   file->is_std = true;
@@ -358,9 +358,9 @@ b_value io_module_stdout(b_vm *vm) {
  *
  * returns the standard error interface
  */
-b_value io_module_stderr(b_vm *vm) {
+b_value io_module_stderr(b_vm *vm, b_vm_thread *th) {
   b_obj_file *file =
-      new_file(vm, copy_string(vm, "<stderr>", 8), copy_string(vm, "wb", 2));
+      new_file(vm, th, copy_string(vm, th, "<stderr>", 8), copy_string(vm, th, "wb", 2));
   file->file = stderr;
   file->is_open = true;
   file->is_std = true;

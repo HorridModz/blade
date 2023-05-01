@@ -49,8 +49,8 @@ void free_blob(b_vm *vm, b_blob *blob) {
 }
 
 int add_constant(b_vm *vm, b_blob *blob, b_value value) {
-  push(vm, value); // fixing gc corruption
+  push(vm->thread, value); // fixing gc corruption
   write_value_arr(vm, &blob->constants, value);
-  pop(vm); // fixing gc corruption
+  pop(vm->thread); // fixing gc corruption
   return blob->constants.count - 1;
 }

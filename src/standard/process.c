@@ -55,7 +55,7 @@ static int kill(int i, int j) {
 }
 #endif
 
-b_value __process_cpu_count(b_vm *vm) {
+b_value __process_cpu_count(b_vm *vm, b_vm_thread *th) {
 #if defined(HAVE_SYSCONF) && defined(_SC_NPROCESSORS_ONLN)
   return NUMBER_VAL((int)sysconf(_SC_NPROCESSORS_ONLN));
 #endif
@@ -103,7 +103,7 @@ void b__free_shared_memory(void *data) {
 DECLARE_MODULE_METHOD(process_Process) {
   ENFORCE_ARG_RANGE(Process, 0, 1);
   BProcess *process = ALLOCATE(BProcess, 1);
-  b_obj_ptr *ptr = (b_obj_ptr *)GC(new_ptr(vm, process));
+  b_obj_ptr *ptr = (b_obj_ptr *)GC(new_ptr(vm, th, process));
   ptr->name = "<*Process::Process>";
   process->pid = -1;
   RETURN_OBJ(ptr);
@@ -175,7 +175,7 @@ DECLARE_MODULE_METHOD(process_new_shared) {
   shared->format = mmap(NULL, sizeof(char), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
   shared->get_format = mmap(NULL, sizeof(char), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
   shared->length = shared->get_format_length = shared->format_length = 0;
-  b_obj_ptr *ptr = (b_obj_ptr *)GC(new_ptr(vm, shared));
+  b_obj_ptr *ptr = (b_obj_ptr *)GC(new_ptr(vm, th, shared));
   ptr->name = "<*Process::SharedValue>";
   ptr->free_fn = b__free_shared_memory;
   RETURN_OBJ(ptr);
@@ -216,10 +216,10 @@ DECLARE_MODULE_METHOD(process_shared_read) {
   BProcessShared *shared = (BProcessShared *)AS_PTR(args[0])->pointer;
 
   if(shared->length > 0 || shared->format_length > 0) {
-    b_obj_bytes *bytes = (b_obj_bytes *) GC(copy_bytes(vm, shared->bytes, shared->length));
+    b_obj_bytes *bytes = (b_obj_bytes *) GC(copy_bytes(vm, th, shared->bytes, shared->length));
 
     // return [format, bytes]
-    b_obj_list *list = (b_obj_list *)GC(new_list(vm));
+    b_obj_list *list = (b_obj_list *)GC(new_list(vm, th));
     write_list(vm, list, STRING_L_VAL(shared->get_format, shared->get_format_length));
     write_list(vm, list, OBJ_VAL(bytes));
 

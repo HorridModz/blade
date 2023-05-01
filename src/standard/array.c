@@ -11,14 +11,14 @@ void array_free(void *data) {
   }
 }
 
-b_obj_ptr *new_array(b_vm *vm, b_array *array) {
-  b_obj_ptr *ptr = (b_obj_ptr *)GC(new_ptr(vm, array));
+b_obj_ptr *new_array(b_vm *vm, b_vm_thread *th, b_array *array) {
+  b_obj_ptr *ptr = (b_obj_ptr *)GC(new_ptr(vm, th, array));
   ptr->free_fn = &array_free;
   return ptr;
 }
 
 //--------- INT 16 STARTS -------------------------
-b_array *new_int16_array(b_vm *vm, int length) {
+b_array *new_int16_array(b_vm *vm, b_vm_thread *th, int length) {
   b_array *array = ALLOCATE_OBJ(b_array, OBJ_BYTES);
   array->length = length;
   array->buffer = ALLOCATE(int16_t, length);
@@ -28,10 +28,10 @@ b_array *new_int16_array(b_vm *vm, int length) {
 DECLARE_MODULE_METHOD(array__int16array) {
   ENFORCE_ARG_COUNT(int16array, 1);
   if (IS_NUMBER(args[0])) {
-    RETURN_OBJ(new_array(vm, new_int16_array(vm, (int) AS_NUMBER(args[0]))));
+    RETURN_OBJ(new_array(vm, th, new_int16_array(vm, th, (int) AS_NUMBER(args[0]))));
   } else if (IS_LIST(args[0])) {
     b_obj_list *list = AS_LIST(args[0]);
-    b_array *array = new_int16_array(vm, list->items.count);
+    b_array *array = new_int16_array(vm, th, list->items.count);
     int16_t *values = (int16_t *)array->buffer;
 
     for (int i = 0; i < list->items.count; i++) {
@@ -42,7 +42,7 @@ DECLARE_MODULE_METHOD(array__int16array) {
       values[i] = (int16_t) AS_NUMBER(list->items.values[i]);
     }
 
-    RETURN_OBJ(new_array(vm, array));
+    RETURN_OBJ(new_array(vm, th, array));
   }
 
   RETURN_ERROR("expected array size or int16 list as argument");
@@ -107,14 +107,14 @@ DECLARE_MODULE_METHOD(array_int16_reverse) {
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
   int16_t *data = (int16_t *)array->buffer;
 
-  b_array *n_array = new_int16_array(vm, array->length);
+  b_array *n_array = new_int16_array(vm, th, array->length);
   int16_t *n_data = (int16_t *)n_array->buffer;
 
   for (int i = array->length - 1; i >= 0; i--) {
     n_data[i] = data[i];
   }
 
-  RETURN_OBJ(new_array(vm, n_array));
+  RETURN_OBJ(new_array(vm, th, n_array));
 }
 
 DECLARE_MODULE_METHOD(array_int16_clone) {
@@ -123,10 +123,10 @@ DECLARE_MODULE_METHOD(array_int16_clone) {
 
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
 
-  b_array *n_array = new_int16_array(vm, array->length);
+  b_array *n_array = new_int16_array(vm, th, array->length);
   memcpy(n_array->buffer, array->buffer, array->length);
 
-  RETURN_OBJ(new_array(vm, n_array));
+  RETURN_OBJ(new_array(vm, th, n_array));
 }
 
 DECLARE_MODULE_METHOD(array_int16_pop) {
@@ -171,7 +171,7 @@ DECLARE_MODULE_METHOD(array_int16_to_list) {
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
   int16_t *values = (int16_t *)array->buffer;
 
-  b_obj_list *list = (b_obj_list *)GC(new_list(vm));
+  b_obj_list *list = (b_obj_list *)GC(new_list(vm, th));
 
   for (int i = 0; i < array->length; i++) {
     write_list(vm, list, NUMBER_VAL((double)values[i]));
@@ -186,7 +186,7 @@ DECLARE_MODULE_METHOD(array_int16_to_bytes) {
 
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
 
-  b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, array->length * 2));
+  b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, th, array->length * 2));
   memcpy(bytes->bytes.bytes, array->buffer, array->length * 2);
 
   RETURN_OBJ(bytes);
@@ -212,7 +212,7 @@ DECLARE_MODULE_METHOD(array_int16___iter__) {
 
 //--------- INT 32 STARTS -------------------------
 
-b_array *new_int32_array(b_vm *vm, int length) {
+b_array *new_int32_array(b_vm *vm, b_vm_thread *th, int length) {
   b_array *array = ALLOCATE_OBJ(b_array, OBJ_BYTES);
   array->length = length;
   array->buffer = ALLOCATE(int32_t, length);
@@ -222,10 +222,10 @@ b_array *new_int32_array(b_vm *vm, int length) {
 DECLARE_MODULE_METHOD(array__int32array) {
   ENFORCE_ARG_COUNT(int32array, 1);
   if (IS_NUMBER(args[0])) {
-    RETURN_OBJ(new_array(vm, new_int32_array(vm, (int) AS_NUMBER(args[0]))));
+    RETURN_OBJ(new_array(vm, th, new_int32_array(vm, th, (int) AS_NUMBER(args[0]))));
   } else if (IS_LIST(args[0])) {
     b_obj_list *list = AS_LIST(args[0]);
-    b_array *array = new_int32_array(vm, list->items.count);
+    b_array *array = new_int32_array(vm, th, list->items.count);
     int32_t *values = (int32_t *)array->buffer;
 
     for (int i = 0; i < list->items.count; i++) {
@@ -236,7 +236,7 @@ DECLARE_MODULE_METHOD(array__int32array) {
       values[i] = (int32_t) AS_NUMBER(list->items.values[i]);
     }
 
-    RETURN_OBJ(new_array(vm, array));
+    RETURN_OBJ(new_array(vm, th, array));
   }
 
   RETURN_ERROR("expected array size or int32 list as argument");
@@ -301,14 +301,14 @@ DECLARE_MODULE_METHOD(array_int32_reverse) {
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
   int32_t *data = (int32_t *)array->buffer;
 
-  b_array *n_array = new_int32_array(vm, array->length);
+  b_array *n_array = new_int32_array(vm, th, array->length);
   int32_t *n_data = (int32_t *)n_array->buffer;
 
   for (int i = array->length - 1; i >= 0; i--) {
     n_data[i] = data[i];
   }
 
-  RETURN_OBJ(new_array(vm, n_array));
+  RETURN_OBJ(new_array(vm, th, n_array));
 }
 
 DECLARE_MODULE_METHOD(array_int32_clone) {
@@ -317,10 +317,10 @@ DECLARE_MODULE_METHOD(array_int32_clone) {
 
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
 
-  b_array *n_array = new_int32_array(vm, array->length);
+  b_array *n_array = new_int32_array(vm, th, array->length);
   memcpy(n_array->buffer, array->buffer, array->length);
 
-  RETURN_OBJ(new_array(vm, n_array));
+  RETURN_OBJ(new_array(vm, th, n_array));
 }
 
 DECLARE_MODULE_METHOD(array_int32_pop) {
@@ -365,7 +365,7 @@ DECLARE_MODULE_METHOD(array_int32_to_list) {
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
   int32_t *values = (int32_t *)array->buffer;
 
-  b_obj_list *list = (b_obj_list *)GC(new_list(vm));
+  b_obj_list *list = (b_obj_list *)GC(new_list(vm, th));
 
   for (int i = 0; i < array->length; i++) {
     write_list(vm, list, NUMBER_VAL((double)values[i]));
@@ -380,7 +380,7 @@ DECLARE_MODULE_METHOD(array_int32_to_bytes) {
 
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
 
-  b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, array->length * 4));
+  b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, th, array->length * 4));
   memcpy(bytes->bytes.bytes, array->buffer, array->length * 4);
 
   RETURN_OBJ(bytes);
@@ -406,7 +406,7 @@ DECLARE_MODULE_METHOD(array_int32___iter__) {
 
 //--------- INT 64 STARTS -------------------------
 
-b_array *new_int64_array(b_vm *vm, int length) {
+b_array *new_int64_array(b_vm *vm, b_vm_thread *th, int length) {
   b_array *array = ALLOCATE_OBJ(b_array, OBJ_BYTES);
   array->length = length;
   array->buffer = ALLOCATE(int64_t, length);
@@ -416,10 +416,10 @@ b_array *new_int64_array(b_vm *vm, int length) {
 DECLARE_MODULE_METHOD(array__int64array) {
   ENFORCE_ARG_COUNT(int64array, 1);
   if (IS_NUMBER(args[0])) {
-    RETURN_OBJ(new_array(vm, new_int64_array(vm, (int) AS_NUMBER(args[0]))));
+    RETURN_OBJ(new_array(vm, th, new_int64_array(vm, th, (int) AS_NUMBER(args[0]))));
   } else if (IS_LIST(args[0])) {
     b_obj_list *list = AS_LIST(args[0]);
-    b_array *array = new_int64_array(vm, list->items.count);
+    b_array *array = new_int64_array(vm, th, list->items.count);
     int64_t *values = (int64_t *)array->buffer;
 
     for (int i = 0; i < list->items.count; i++) {
@@ -430,7 +430,7 @@ DECLARE_MODULE_METHOD(array__int64array) {
       values[i] = (int64_t) AS_NUMBER(list->items.values[i]);
     }
 
-    RETURN_OBJ(new_array(vm, array));
+    RETURN_OBJ(new_array(vm, th, array));
   }
 
   RETURN_ERROR("expected array size or int64 list as argument");
@@ -495,14 +495,14 @@ DECLARE_MODULE_METHOD(array_int64_reverse) {
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
   int64_t *data = (int64_t *)array->buffer;
 
-  b_array *n_array = new_int64_array(vm, array->length);
+  b_array *n_array = new_int64_array(vm, th, array->length);
   int64_t *n_data = (int64_t *)n_array->buffer;
 
   for (int i = array->length - 1; i >= 0; i--) {
     n_data[i] = data[i];
   }
 
-  RETURN_OBJ(new_array(vm, n_array));
+  RETURN_OBJ(new_array(vm, th, n_array));
 }
 
 DECLARE_MODULE_METHOD(array_int64_clone) {
@@ -511,10 +511,10 @@ DECLARE_MODULE_METHOD(array_int64_clone) {
 
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
 
-  b_array *n_array = new_int64_array(vm, array->length);
+  b_array *n_array = new_int64_array(vm, th, array->length);
   memcpy(n_array->buffer, array->buffer, array->length);
 
-  RETURN_OBJ(new_array(vm, n_array));
+  RETURN_OBJ(new_array(vm, th, n_array));
 }
 
 DECLARE_MODULE_METHOD(array_int64_pop) {
@@ -559,7 +559,7 @@ DECLARE_MODULE_METHOD(array_int64_to_list) {
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
   int64_t *values = (int64_t *)array->buffer;
 
-  b_obj_list *list = (b_obj_list *)GC(new_list(vm));
+  b_obj_list *list = (b_obj_list *)GC(new_list(vm, th));
 
   for (int i = 0; i < array->length; i++) {
     write_list(vm, list, NUMBER_VAL((double)values[i]));
@@ -574,7 +574,7 @@ DECLARE_MODULE_METHOD(array_int64_to_bytes) {
 
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
 
-  b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, array->length * 8));
+  b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, th, array->length * 8));
   memcpy(bytes->bytes.bytes, array->buffer, array->length * 8);
 
   RETURN_OBJ(bytes);
@@ -600,7 +600,7 @@ DECLARE_MODULE_METHOD(array_int64___iter__) {
 
 //--------- Unsigned INT 16 STARTS ----------------
 
-b_array *new_uint16_array(b_vm *vm, int length) {
+b_array *new_uint16_array(b_vm *vm, b_vm_thread *th, int length) {
   b_array *array = ALLOCATE_OBJ(b_array, OBJ_BYTES);
   array->length = length;
   array->buffer = ALLOCATE(uint16_t, length);
@@ -610,10 +610,10 @@ b_array *new_uint16_array(b_vm *vm, int length) {
 DECLARE_MODULE_METHOD(array__uint16array) {
   ENFORCE_ARG_COUNT(uint16array, 1);
   if (IS_NUMBER(args[0])) {
-    RETURN_OBJ(new_array(vm, new_uint16_array(vm, (int) AS_NUMBER(args[0]))));
+    RETURN_OBJ(new_array(vm, th, new_uint16_array(vm, th, (int) AS_NUMBER(args[0]))));
   } else if (IS_LIST(args[0])) {
     b_obj_list *list = AS_LIST(args[0]);
-    b_array *array = new_uint16_array(vm, list->items.count);
+    b_array *array = new_uint16_array(vm, th, list->items.count);
     uint16_t *values = (uint16_t *)array->buffer;
 
     for (int i = 0; i < list->items.count; i++) {
@@ -624,7 +624,7 @@ DECLARE_MODULE_METHOD(array__uint16array) {
       values[i] = (uint16_t) AS_NUMBER(list->items.values[i]);
     }
 
-    RETURN_OBJ(new_array(vm, array));
+    RETURN_OBJ(new_array(vm, th, array));
   }
 
   RETURN_ERROR("expected array size or uint16 list as argument");
@@ -689,14 +689,14 @@ DECLARE_MODULE_METHOD(array_uint16_reverse) {
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
   uint16_t *data = (uint16_t *)array->buffer;
 
-  b_array *n_array = new_uint16_array(vm, array->length);
+  b_array *n_array = new_uint16_array(vm, th, array->length);
   uint16_t *n_data = (uint16_t *)n_array->buffer;
 
   for (int i = array->length - 1; i >= 0; i--) {
     n_data[i] = data[i];
   }
 
-  RETURN_OBJ(new_array(vm, n_array));
+  RETURN_OBJ(new_array(vm, th, n_array));
 }
 
 DECLARE_MODULE_METHOD(array_uint16_clone) {
@@ -705,10 +705,10 @@ DECLARE_MODULE_METHOD(array_uint16_clone) {
 
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
 
-  b_array *n_array = new_uint16_array(vm, array->length);
+  b_array *n_array = new_uint16_array(vm, th, array->length);
   memcpy(n_array->buffer, array->buffer, array->length);
 
-  RETURN_OBJ(new_array(vm, n_array));
+  RETURN_OBJ(new_array(vm, th, n_array));
 }
 
 DECLARE_MODULE_METHOD(array_uint16_pop) {
@@ -753,7 +753,7 @@ DECLARE_MODULE_METHOD(array_uint16_to_list) {
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
   uint16_t *values = (uint16_t *)array->buffer;
 
-  b_obj_list *list = (b_obj_list *)GC(new_list(vm));
+  b_obj_list *list = (b_obj_list *)GC(new_list(vm, th));
 
   for (int i = 0; i < array->length; i++) {
     write_list(vm, list, NUMBER_VAL((double)values[i]));
@@ -768,7 +768,7 @@ DECLARE_MODULE_METHOD(array_uint16_to_bytes) {
 
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
 
-  b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, array->length * 2));
+  b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, th, array->length * 2));
   memcpy(bytes->bytes.bytes, array->buffer, array->length * 2);
 
   RETURN_OBJ(bytes);
@@ -794,7 +794,7 @@ DECLARE_MODULE_METHOD(array_uint16___iter__) {
 
 //--------- Unsigned INT 32 STARTS ----------------
 
-b_array *new_uint32_array(b_vm *vm, int length) {
+b_array *new_uint32_array(b_vm *vm, b_vm_thread *th, int length) {
   b_array *array = ALLOCATE_OBJ(b_array, OBJ_BYTES);
   array->length = length;
   array->buffer = ALLOCATE(uint32_t, length);
@@ -804,10 +804,10 @@ b_array *new_uint32_array(b_vm *vm, int length) {
 DECLARE_MODULE_METHOD(array__uint32array) {
   ENFORCE_ARG_COUNT(uint32array, 1);
   if (IS_NUMBER(args[0])) {
-    RETURN_OBJ(new_array(vm, new_uint32_array(vm, (int) AS_NUMBER(args[0]))));
+    RETURN_OBJ(new_array(vm, th, new_uint32_array(vm, th, (int) AS_NUMBER(args[0]))));
   } else if (IS_LIST(args[0])) {
     b_obj_list *list = AS_LIST(args[0]);
-    b_array *array = new_uint32_array(vm, list->items.count);
+    b_array *array = new_uint32_array(vm, th, list->items.count);
     uint32_t *values = (uint32_t *)array->buffer;
 
     for (int i = 0; i < list->items.count; i++) {
@@ -818,7 +818,7 @@ DECLARE_MODULE_METHOD(array__uint32array) {
       values[i] = (uint32_t) AS_NUMBER(list->items.values[i]);
     }
 
-    RETURN_OBJ(new_array(vm, array));
+    RETURN_OBJ(new_array(vm, th, array));
   }
 
   RETURN_ERROR("expected array size or uint32 list as argument");
@@ -883,14 +883,14 @@ DECLARE_MODULE_METHOD(array_uint32_reverse) {
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
   uint32_t *data = (uint32_t *)array->buffer;
 
-  b_array *n_array = new_uint32_array(vm, array->length);
+  b_array *n_array = new_uint32_array(vm, th, array->length);
   uint32_t *n_data = (uint32_t *)n_array->buffer;
 
   for (int i = array->length - 1; i >= 0; i--) {
     n_data[i] = data[i];
   }
 
-  RETURN_OBJ(new_array(vm, n_array));
+  RETURN_OBJ(new_array(vm, th, n_array));
 }
 
 DECLARE_MODULE_METHOD(array_uint32_clone) {
@@ -899,10 +899,10 @@ DECLARE_MODULE_METHOD(array_uint32_clone) {
 
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
 
-  b_array *n_array = new_uint32_array(vm, array->length);
+  b_array *n_array = new_uint32_array(vm, th, array->length);
   memcpy(n_array->buffer, array->buffer, array->length);
 
-  RETURN_OBJ(new_array(vm, n_array));
+  RETURN_OBJ(new_array(vm, th, n_array));
 }
 
 DECLARE_MODULE_METHOD(array_uint32_pop) {
@@ -947,7 +947,7 @@ DECLARE_MODULE_METHOD(array_uint32_to_list) {
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
   uint32_t *values = (uint32_t *)array->buffer;
 
-  b_obj_list *list = (b_obj_list *)GC(new_list(vm));
+  b_obj_list *list = (b_obj_list *)GC(new_list(vm, th));
 
   for (int i = 0; i < array->length; i++) {
     write_list(vm, list, NUMBER_VAL((double)values[i]));
@@ -962,7 +962,7 @@ DECLARE_MODULE_METHOD(array_uint32_to_bytes) {
 
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
 
-  b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, array->length * 4));
+  b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, th, array->length * 4));
   memcpy(bytes->bytes.bytes, array->buffer, array->length * 4);
 
   RETURN_OBJ(bytes);
@@ -988,7 +988,7 @@ DECLARE_MODULE_METHOD(array_uint32___iter__) {
 
 //--------- Unsigned INT 64 STARTS ----------------
 
-b_array *new_uint64_array(b_vm *vm, int length) {
+b_array *new_uint64_array(b_vm *vm, b_vm_thread *th, int length) {
   b_array *array = ALLOCATE_OBJ(b_array, OBJ_BYTES);
   array->length = length;
   array->buffer = ALLOCATE(int64_t, length);
@@ -998,10 +998,10 @@ b_array *new_uint64_array(b_vm *vm, int length) {
 DECLARE_MODULE_METHOD(array__uint64array) {
   ENFORCE_ARG_COUNT(uint32array, 1);
   if (IS_NUMBER(args[0])) {
-    RETURN_OBJ(new_array(vm, new_uint64_array(vm, (int) AS_NUMBER(args[0]))));
+    RETURN_OBJ(new_array(vm, th, new_uint64_array(vm, th, (int) AS_NUMBER(args[0]))));
   } else if (IS_LIST(args[0])) {
     b_obj_list *list = AS_LIST(args[0]);
-    b_array *array = new_uint64_array(vm, list->items.count);
+    b_array *array = new_uint64_array(vm, th, list->items.count);
     uint64_t *values = (uint64_t *)array->buffer;
 
     for (int i = 0; i < list->items.count; i++) {
@@ -1012,7 +1012,7 @@ DECLARE_MODULE_METHOD(array__uint64array) {
       values[i] = (uint64_t) AS_NUMBER(list->items.values[i]);
     }
 
-    RETURN_OBJ(new_array(vm, array));
+    RETURN_OBJ(new_array(vm, th, array));
   }
 
   RETURN_ERROR("expected array size or uint64 list as argument");
@@ -1077,14 +1077,14 @@ DECLARE_MODULE_METHOD(array_uint64_reverse) {
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
   uint64_t *data = (uint64_t *)array->buffer;
 
-  b_array *n_array = new_uint64_array(vm, array->length);
+  b_array *n_array = new_uint64_array(vm, th, array->length);
   uint64_t *n_data = (uint64_t *)n_array->buffer;
 
   for (int i = array->length - 1; i >= 0; i--) {
     n_data[i] = data[i];
   }
 
-  RETURN_OBJ(new_array(vm, n_array));
+  RETURN_OBJ(new_array(vm, th, n_array));
 }
 
 DECLARE_MODULE_METHOD(array_uint64_clone) {
@@ -1093,10 +1093,10 @@ DECLARE_MODULE_METHOD(array_uint64_clone) {
 
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
 
-  b_array *n_array = new_uint64_array(vm, array->length);
+  b_array *n_array = new_uint64_array(vm, th, array->length);
   memcpy(n_array->buffer, array->buffer, array->length);
 
-  RETURN_OBJ(new_array(vm, n_array));
+  RETURN_OBJ(new_array(vm, th, n_array));
 }
 
 DECLARE_MODULE_METHOD(array_uint64_pop) {
@@ -1141,7 +1141,7 @@ DECLARE_MODULE_METHOD(array_uint64_to_list) {
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
   uint64_t *values = (uint64_t *)array->buffer;
 
-  b_obj_list *list = (b_obj_list *)GC(new_list(vm));
+  b_obj_list *list = (b_obj_list *)GC(new_list(vm, th));
 
   for (int i = 0; i < array->length; i++) {
     write_list(vm, list, NUMBER_VAL((double)values[i]));
@@ -1156,7 +1156,7 @@ DECLARE_MODULE_METHOD(array_uint64_to_bytes) {
 
   b_array  *array = (b_array *) AS_PTR(args[0])->pointer;
 
-  b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, array->length * 8));
+  b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, th, array->length * 8));
   memcpy(bytes->bytes.bytes, array->buffer, array->length * 8);
 
   RETURN_OBJ(bytes);

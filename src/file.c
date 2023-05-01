@@ -102,10 +102,10 @@ DECLARE_NATIVE(file) {
     ENFORCE_ARG_TYPE(file, 1, IS_STRING);
     mode = AS_STRING(args[1]);
   } else {
-    mode = (b_obj_string *) GC(copy_string(vm, "r", 1));
+    mode = (b_obj_string *) GC(copy_string(vm, th, "r", 1));
   }
 
-  b_obj_file *file = (b_obj_file*)GC(new_file(vm, path, mode));
+  b_obj_file *file = (b_obj_file*)GC(new_file(vm, th, path, mode));
   file_open(file);
 
   RETURN_OBJ(file);
@@ -221,7 +221,7 @@ DECLARE_FILE_METHOD(read) {
     RETURN_T_STRING(buffer, bytes_read);
   }
 
-  RETURN_OBJ(take_bytes(vm, (unsigned char *) buffer, bytes_read));
+  RETURN_OBJ(take_bytes(vm, th, (unsigned char *) buffer, bytes_read));
 }
 
 DECLARE_FILE_METHOD(gets) {
@@ -297,7 +297,7 @@ DECLARE_FILE_METHOD(gets) {
     RETURN_T_STRING(buffer, bytes_read);
   }
 
-  RETURN_OBJ(take_bytes(vm, (unsigned char *) buffer, bytes_read));
+  RETURN_OBJ(take_bytes(vm, th, (unsigned char *) buffer, bytes_read));
 }
 
 DECLARE_FILE_METHOD(write) {
@@ -433,7 +433,7 @@ DECLARE_FILE_METHOD(stats) {
   ENFORCE_ARG_COUNT(stats, 0);
 
   b_obj_file *file = AS_FILE(METHOD_OBJECT);
-  b_obj_dict *dict = (b_obj_dict *) GC(new_dict(vm));
+  b_obj_dict *dict = (b_obj_dict *) GC(new_dict(vm, th));
 
   if (!file->is_std) {
     if (file_exists(file->path->chars)) {

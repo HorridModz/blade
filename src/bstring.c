@@ -266,7 +266,7 @@ DECLARE_STRING_METHOD(trim) {
   }
 
   if (*string == 0) { // All spaces?
-    RETURN_OBJ(copy_string(vm, "", 0));
+    RETURN_OBJ(copy_string(vm, th, "", 0));
   }
 
   // Trim trailing space
@@ -309,7 +309,7 @@ DECLARE_STRING_METHOD(ltrim) {
   }
 
   if (*string == 0) { // All spaces?
-    RETURN_OBJ(copy_string(vm, "", 0));
+    RETURN_OBJ(copy_string(vm, th, "", 0));
   }
 
   end = string + strlen(string) - 1;
@@ -335,7 +335,7 @@ DECLARE_STRING_METHOD(rtrim) {
   char *end = NULL;
 
   if (*string == 0) { // All spaces?
-    RETURN_OBJ(copy_string(vm, "", 0));
+    RETURN_OBJ(copy_string(vm, th, "", 0));
   }
 
   end = string + strlen(string) - 1;
@@ -431,9 +431,9 @@ DECLARE_STRING_METHOD(join) {
   b_obj_string *object = AS_STRING(METHOD_OBJECT);
   b_obj_string *delimeter = AS_STRING(args[0]);
 
-  if (object->length == 0 || delimeter->length > object->length) RETURN_OBJ(new_list(vm));
+  if (object->length == 0 || delimeter->length > object->length) RETURN_OBJ(new_list(vm, th));
 
-  b_obj_list *list = (b_obj_list *) GC(new_list(vm));
+  b_obj_list *list = (b_obj_list *) GC(new_list(vm, th));
 
   // main work here...
   if (delimeter->length > 0) {
@@ -558,7 +558,7 @@ DECLARE_STRING_METHOD(ascii) {
 DECLARE_STRING_METHOD(to_list) {
   ENFORCE_ARG_COUNT(to_list, 0);
   b_obj_string *string = AS_STRING(METHOD_OBJECT);
-  b_obj_list *list = (b_obj_list *) GC(new_list(vm));
+  b_obj_list *list = (b_obj_list *) GC(new_list(vm, th));
   int length = string->is_ascii ? string->length : string->utf8_length;
 
   if (length > 0) {
@@ -604,7 +604,7 @@ DECLARE_STRING_METHOD(lpad) {
   memcpy(str + fill_size, string->chars, string->length);
   str[final_size] = '\0';
 
-  b_obj_string *result = take_string(vm, str, final_size);
+  b_obj_string *result = take_string(vm, th, str, final_size);
   result->utf8_length = final_utf8_size;
   result->length = final_size;
   RETURN_OBJ(result);
@@ -639,7 +639,7 @@ DECLARE_STRING_METHOD(rpad) {
   memcpy(str + string->length, fill, fill_size);
   str[final_size] = '\0';
 
-  b_obj_string *result = take_string(vm, str, final_size);
+  b_obj_string *result = take_string(vm, th, str, final_size);
   result->utf8_length = final_utf8_size;
   result->length = final_size;
   RETURN_OBJ(result);
@@ -695,7 +695,7 @@ DECLARE_STRING_METHOD(match) {
   PCRE2_SIZE *o_vector = pcre2_get_ovector_pointer(match_data);
   uint32_t name_count;
 
-  b_obj_dict *result = (b_obj_dict *) GC(new_dict(vm));
+  b_obj_dict *result = (b_obj_dict *) GC(new_dict(vm, th));
   (void) pcre2_pattern_info(re, PCRE2_INFO_NAMECOUNT, &name_count);
 
   for (int i = 0; i < rc; i++) {
@@ -745,7 +745,7 @@ DECLARE_STRING_METHOD(matches) {
   b_obj_string *substr = AS_STRING(args[0]);
 
   if (string->length == 0 && substr->length == 0) {
-    RETURN_OBJ(new_list(vm)); // empty string matches empty string to empty list
+    RETURN_OBJ(new_list(vm, th)); // empty string matches empty string to empty list
   } else if (string->length == 0 || substr->length == 0) {
     RETURN_FALSE; // if either string or str is empty, return false
   }
@@ -794,7 +794,7 @@ DECLARE_STRING_METHOD(matches) {
   (void) pcre2_pattern_info(re, PCRE2_INFO_NAMECOUNT, &name_count);
   (void) pcre2_pattern_info(re, PCRE2_INFO_CAPTURECOUNT, &group_count);
 
-  b_obj_dict *result = (b_obj_dict *) GC(new_dict(vm));
+  b_obj_dict *result = (b_obj_dict *) GC(new_dict(vm, th));
 
   for (int i = 0; i < rc; i++) {
     dict_set_entry(vm, result, NUMBER_VAL(0), NIL_VAL);
@@ -802,7 +802,7 @@ DECLARE_STRING_METHOD(matches) {
 
   // add first set of matches to response
   for (int i = 0; i < rc; i++) {
-    b_obj_list *list = (b_obj_list *) GC(new_list(vm));
+    b_obj_list *list = (b_obj_list *) GC(new_list(vm, th));
     PCRE2_SIZE substring_length = o_vector[2 * i + 1] - o_vector[2 * i];
     PCRE2_SPTR substring_start = subject + o_vector[2 * i];
     write_list(vm, list, STRING_L_VAL((char *) substring_start, (int) substring_length));
@@ -829,7 +829,7 @@ DECLARE_STRING_METHOD(matches) {
         if(_key[j] == 0) key_length--;
       }
 
-      b_obj_list *list = (b_obj_list *) GC(new_list(vm));
+      b_obj_list *list = (b_obj_list *) GC(new_list(vm, th));
       write_list(vm, list, STRING_L_VAL(_value, value_length));
       dict_set_entry(vm, result, STRING_L_VAL(_key, key_length), OBJ_VAL(list));
 
@@ -910,7 +910,7 @@ DECLARE_STRING_METHOD(matches) {
       if (dict_get_entry(result, NUMBER_VAL(i), &vlist)) {
         write_list(vm, AS_LIST(vlist), STRING_L_VAL((char *) substring_start, (int) substring_length));
       } else {
-        b_obj_list *list = (b_obj_list *) GC(new_list(vm));
+        b_obj_list *list = (b_obj_list *) GC(new_list(vm, th));
         write_list(vm, list, STRING_L_VAL((char *) substring_start, (int) substring_length));
         dict_set_entry(vm, result, NUMBER_VAL(i), OBJ_VAL(list));
       }
@@ -943,7 +943,7 @@ DECLARE_STRING_METHOD(matches) {
         if (dict_get_entry(result, OBJ_VAL(name), &nlist)) {
           write_list(vm, AS_LIST(nlist), OBJ_VAL(value));
         } else {
-          b_obj_list *list = (b_obj_list *) GC(new_list(vm));
+          b_obj_list *list = (b_obj_list *) GC(new_list(vm, th));
           write_list(vm, list, OBJ_VAL(value));
           dict_set_entry(vm, result, OBJ_VAL(name), OBJ_VAL(list));
         }
@@ -973,10 +973,10 @@ DECLARE_STRING_METHOD(split) {
   }
 
   if (string->length == 0 && delimeter->length == 0 || string->length == 0 || delimeter->length == 0) {
-    RETURN_OBJ(new_list(vm)); // empty string matches empty string to empty list
+    RETURN_OBJ(new_list(vm, th)); // empty string matches empty string to empty list
   }
 
-  b_obj_list *list = (b_obj_list *) GC(new_list(vm));
+  b_obj_list *list = (b_obj_list *) GC(new_list(vm, th));
 
   uint32_t compile_options = use_regex ? is_regex(delimeter) : -1;
   if ((int)compile_options == -1) {
@@ -1188,7 +1188,7 @@ DECLARE_STRING_METHOD(replace) {
   }
 
   b_obj_string *response =
-      take_string(vm, (char *) output_buffer, (int) output_length);
+      take_string(vm, th, (char *) output_buffer, (int) output_length);
 
   pcre2_match_context_free(match_context);
   pcre2_code_free(re);
@@ -1199,7 +1199,7 @@ DECLARE_STRING_METHOD(replace) {
 DECLARE_STRING_METHOD(to_bytes) {
   ENFORCE_ARG_COUNT(to_bytes, 0);
   b_obj_string *string = AS_STRING(METHOD_OBJECT);
-  RETURN_OBJ(copy_bytes(vm, (unsigned char *) string->chars, string->length));
+  RETURN_OBJ(copy_bytes(vm, th, (unsigned char *) string->chars, string->length));
 }
 
 DECLARE_STRING_METHOD(__iter__) {

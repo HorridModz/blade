@@ -382,14 +382,14 @@ static void init_compiler(b_parser *p, b_compiler *compiler, b_func_type type) {
   compiler->scope_depth = 0;
   compiler->handler_count = 0;
 
-  compiler->function = new_function(p->vm, p->module, type);
+  compiler->function = new_function(p->vm, p->vm->thread, p->module, type);
   p->vm->compiler = compiler;
 
   if (type != TYPE_SCRIPT) {
-    push(p->vm, OBJ_VAL(compiler->function));
+    push(p->vm->thread, OBJ_VAL(compiler->function));
     p->vm->compiler->function->name =
-        copy_string(p->vm, p->previous.start, p->previous.length);
-    pop(p->vm);
+        copy_string(p->vm, p->vm->thread, p->previous.start, p->previous.length);
+    pop(p->vm->thread);
   }
 
   // claiming slot zero for use in class methods
@@ -408,7 +408,7 @@ static void init_compiler(b_parser *p, b_compiler *compiler, b_func_type type) {
 
 static int identifier_constant(b_parser *p, b_token *name) {
   return make_constant(p,
-                       OBJ_VAL(copy_string(p->vm, name->start, name->length)));
+                       OBJ_VAL(copy_string(p->vm, p->vm->thread, name->start, name->length)));
 }
 
 static inline bool identifiers_equal(b_token *a, b_token *b) {
@@ -929,7 +929,7 @@ static void dictionary(b_parser *p, bool can_assign) {
         bool used_expression = false;
         if (check(p, IDENTIFIER_TOKEN)) {
           consume(p, IDENTIFIER_TOKEN, "");
-          emit_constant(p, OBJ_VAL(copy_string(p->vm, p->previous.start, p->previous.length)));
+          emit_constant(p, OBJ_VAL(copy_string(p->vm, p->vm->thread, p->previous.start, p->previous.length)));
         } else {
           expression(p);
           used_expression = true;
@@ -1190,7 +1190,7 @@ static char *compile_string(b_parser *p, int *length) {
 static void string(b_parser *p, bool can_assign) {
   int length;
   char *str = compile_string(p, &length);
-  emit_constant(p, OBJ_VAL(take_string(p->vm, str, length)));
+  emit_constant(p, OBJ_VAL(take_string(p->vm, p->vm->thread, str, length)));
 }
 
 static void string_interpolation(b_parser *p, bool can_assign) {
@@ -1833,8 +1833,8 @@ static void for_statement(b_parser *p) {
   begin_scope(p);
 
   // define @iter and @itern constant
-  int iter__ = make_constant(p, OBJ_VAL(copy_string(p->vm, "@iter", 5)));
-  int iter_n__ = make_constant(p, OBJ_VAL(copy_string(p->vm, "@itern", 6)));
+  int iter__ = make_constant(p, OBJ_VAL(copy_string(p->vm, p->vm->thread, "@iter", 5)));
+  int iter_n__ = make_constant(p, OBJ_VAL(copy_string(p->vm, p->vm->thread, "@itern", 6)));
 
   consume(p, IDENTIFIER_TOKEN, "expected variable name after 'for'");
   b_token key_token, value_token;
@@ -1948,8 +1948,8 @@ static void using_statement(b_parser *p) {
   int case_ends[MAX_USING_CASES];
   int case_count = 0;
 
-  b_obj_switch *sw = new_switch(p->vm);
-  push(p->vm, OBJ_VAL(sw));
+  b_obj_switch *sw = new_switch(p->vm, p->vm->thread);
+  push(p->vm->thread, OBJ_VAL(sw));
 
   int switch_code = emit_switch(p);
   // emit_byte_and_short(p, OP_SWITCH, make_constant(p, OBJ_VAL(sw)));
@@ -1982,14 +1982,14 @@ static void using_statement(b_parser *p) {
           } else if (p->previous.type == LITERAL_TOKEN) {
             int length;
             char *str = compile_string(p, &length);
-            b_obj_string *string = copy_string(p->vm, str, length);
-            push(p->vm, OBJ_VAL(string)); // gc fix
+            b_obj_string *string = copy_string(p->vm, p->vm->thread, str, length);
+            push(p->vm->thread, OBJ_VAL(string)); // gc fix
             table_set(p->vm, &sw->table, OBJ_VAL(string), jump);
-            pop(p->vm); // gc fix
+            pop(p->vm->thread); // gc fix
           } else if (check_number(p)) {
             table_set(p->vm, &sw->table, compile_number(p), jump);
           } else {
-            pop(p->vm); // pop the switch
+            pop(p->vm->thread); // pop the switch
             error(p, "only constants can be used in when expressions");
             return;
           }
@@ -2020,7 +2020,7 @@ static void using_statement(b_parser *p) {
   sw->exit_jump = current_blob(p)->count - start_offset;
 
   patch_switch(p, switch_code, make_constant(p, OBJ_VAL(sw)));
-  pop(p->vm); // pop the switch
+  pop(p->vm->thread); // pop the switch
 }
 
 static void if_statement(b_parser *p) {
@@ -2139,7 +2139,7 @@ static void import_statement(b_parser *p) {
 
     // handle native modules
     if (part_count == 0 && module_name[0] == '_' && !is_relative) {
-      int module = make_constant(p, OBJ_VAL(copy_string(p->vm, module_name, (int) strlen(module_name))));
+      int module = make_constant(p, OBJ_VAL(copy_string(p->vm, p->vm->thread, module_name, (int) strlen(module_name))));
       emit_byte_and_short(p, OP_NATIVE_MODULE, module);
 
       parse_specific_import(p, module_name, module, false, true);
@@ -2179,7 +2179,7 @@ static void import_statement(b_parser *p) {
     // check if there is one in the vm's registry
     // handle native modules
     b_value md;
-    b_obj_string *final_module_name = copy_string(p->vm, module_name, (int) strlen(module_name));
+    b_obj_string *final_module_name = copy_string(p->vm, p->vm->thread, module_name, (int) strlen(module_name));
     if (table_get(&p->vm->modules, OBJ_VAL(final_module_name), &md)) {
       int module = make_constant(p, OBJ_VAL(final_module_name));
       emit_byte_and_short(p, OP_NATIVE_MODULE, module);
@@ -2207,11 +2207,11 @@ static void import_statement(b_parser *p) {
   b_blob blob;
   init_blob(&blob);
 
-  b_obj_module *module = new_module(p->vm, module_name, module_path);
+  b_obj_module *module = new_module(p->vm, p->vm->thread, module_name, module_path);
 
-  push(p->vm, OBJ_VAL(module));
+  push(p->vm->thread, OBJ_VAL(module));
   b_obj_func *function = compile(p->vm, module, source, &blob);
-  pop(p->vm);
+  pop(p->vm->thread);
 
   free(source);
 
@@ -2222,9 +2222,9 @@ static void import_statement(b_parser *p) {
 
   function->name = NULL;
 
-  push(p->vm, OBJ_VAL(function));
-  b_obj_closure *closure = new_closure(p->vm, function);
-  pop(p->vm);
+  push(p->vm->thread, OBJ_VAL(function));
+  b_obj_closure *closure = new_closure(p->vm, p->vm->thread, function);
+  pop(p->vm->thread);
 
   int import_constant = make_constant(p, OBJ_VAL(closure));
   emit_byte_and_short(p, OP_CALL_IMPORT, import_constant);
@@ -2289,7 +2289,7 @@ static void try_statement(b_parser *p) {
 
     end_scope(p);
   } else {
-      type = make_constant(p, OBJ_VAL(copy_string(p->vm, "Exception", 9)));
+      type = make_constant(p, OBJ_VAL(copy_string(p->vm, p->vm->thread, "Exception", 9)));
   }
 
   patch_jump(p, exit_jump);
