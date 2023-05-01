@@ -317,21 +317,25 @@ void free_object(b_vm *vm, b_obj *object) {
 static void mark_roots(b_vm *vm) {
   b_vm_thread *next_thread = vm->thread;
   while(next_thread != NULL) {
-    if(next_thread->th) {
+    if(next_thread->th != NULL || next_thread->is_root) {
       for (b_value *slot = next_thread->stack; slot < next_thread->stack_top; slot++) {
         mark_value(vm, *slot);
       }
-    }
-    for (int i = 0; i < next_thread->frame_count; i++) {
-      mark_object(vm, (b_obj *) next_thread->frames[i].closure);
-      for(int j = 0; j < next_thread->frames[i].handlers_count; j++) {
-        b_exception_frame handler = next_thread->frames[i].handlers[j];
-        mark_object(vm, (b_obj *)handler.klass);
+      for (int i = 0; i < next_thread->frame_count; i++) {
+        mark_object(vm, (b_obj *) next_thread->frames[i].closure);
+        for(int j = 0; j < next_thread->frames[i].handlers_count; j++) {
+          b_exception_frame handler = next_thread->frames[i].handlers[j];
+          mark_object(vm, (b_obj *)handler.klass);
+        }
       }
-    }
-    for (b_obj_up_value *up_value = next_thread->open_up_values; up_value != NULL;
-         up_value = up_value->next) {
-      mark_object(vm, (b_obj *) up_value);
+      for (b_obj_up_value *up_value = next_thread->open_up_values; up_value != NULL;
+           up_value = up_value->next) {
+        mark_object(vm, (b_obj *) up_value);
+      }
+
+      if(next_thread->function) {
+        mark_object(vm, (b_obj *) next_thread->function);
+      }
     }
     next_thread = next_thread->next;
   }

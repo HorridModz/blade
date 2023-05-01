@@ -850,8 +850,8 @@ typedef struct {
 void *b_thread_function(void *data) {
   b_thread_arg *thread = (b_thread_arg *)data;
   interpret_function(thread->vm, thread->function, thread->thread);
-//  thread->function->obj.stale = false;
-//  thread->function->module->obj.stale = false;
+  thread->function->obj.stale = false;
+  thread->function->module->obj.stale = false;
   thread->thread->th = NULL;
   return NULL;
 }
@@ -868,15 +868,19 @@ DECLARE_NATIVE(run_thread) {
 
   pthread_t *thread = ALLOCATE(pthread_t, 1);
   if(thread) {
-    b_vm_thread *vm_thread = new_vm_thread(vm, thread, th);
+    b_vm_thread *vm_thread = new_vm_thread(vm);
+    vm_thread->function = fn;
+    vm->thread->next = vm_thread;
+
     if(vm_thread) {
+      vm_thread->th = thread;
       b_thread_arg *thread_arg = ALLOCATE(b_thread_arg, 1);
       if(thread_arg) {
         thread_arg->function = fn;
         thread_arg->thread = vm_thread;
         thread_arg->vm = vm;
-//        fn->obj.stale = true;
-//        fn->module->obj.stale = true;
+        fn->obj.stale = true;
+        fn->module->obj.stale = true;
 
         if(pthread_create(thread, NULL, b_thread_function, thread_arg)) {
           if(wait) {

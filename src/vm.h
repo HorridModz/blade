@@ -33,12 +33,14 @@ struct s_vm_thread {
   pthread_mutex_t lock;
   int gc_protected;
   int frame_count;
-  b_value *stack_top;
-  b_obj_up_value *open_up_values;
-  pthread_t *th;
-  b_vm_thread *next;
+  bool is_root;
   b_value stack[STACK_MAX];
   b_call_frame frames[FRAMES_MAX];
+  b_value *stack_top;
+  b_obj_up_value *open_up_values;
+  b_obj_func *function;
+  pthread_t *th;
+  struct s_vm_thread *next;
 };
 
 struct s_vm {
@@ -165,7 +167,7 @@ static inline void gc_clear_protection(b_vm_thread *th) {
 #define GC(o) gc_protect(th, (b_obj*)(o))
 #define CLEAR_GC() gc_clear_protection(th)
 
-b_vm_thread * new_vm_thread(b_vm *vm, pthread_t *th, b_vm_thread *next);
+b_vm_thread * new_vm_thread(b_vm *vm);
 void free_vm_thread(b_vm_thread *thread);
 
 #endif
