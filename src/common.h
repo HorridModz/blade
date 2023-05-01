@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <pthread.h>
 
 
 
@@ -19,6 +20,8 @@
 #else
     #define UNUSED
 #endif
+
+#define SILENT(x) (void)x
 
 #ifdef __GNUC__
 #define DISABLE_WARNING_PUSH _Pragma("GCC diagnostic push")

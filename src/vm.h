@@ -8,7 +8,6 @@ typedef struct s_compiler b_compiler;
 #include "object.h"
 #include "table.h"
 #include "value.h"
-#include <pthread.h>
 
 typedef enum {
   PTR_OK,

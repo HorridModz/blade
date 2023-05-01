@@ -243,7 +243,7 @@ int main(int argc, char *argv[]) {
   bool show_warnings = false;
   bool should_debug_stack = false;
   bool should_print_bytecode = false;
-  long stdout_buffer_size = 0L;
+  long stdout_buffer_size = -1L;
   bool should_exit_after_bytecode = false;
   char *source = NULL;
   int next_gc_start = DEFAULT_GC_START;
@@ -307,11 +307,15 @@ int main(int argc, char *argv[]) {
     vm->should_exit_after_bytecode = should_exit_after_bytecode;
     vm->next_gc = next_gc_start;
 
-    if (stdout_buffer_size) {
+    if (stdout_buffer_size >= 0) {
       // forcing printf buffering for TTYs and terminals
       if (isatty(fileno(stdout))) {
-        char buffer[stdout_buffer_size];
-        setvbuf(stdout, buffer, _IOFBF, stdout_buffer_size);
+        if(stdout_buffer_size > 0) {
+          char buffer[stdout_buffer_size];
+          setvbuf(stdout, buffer, _IOFBF, stdout_buffer_size);
+        } else {
+          setvbuf(stdout, NULL, _IONBF, 0);
+        }
       }
     }
 

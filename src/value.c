@@ -12,15 +12,23 @@ void init_value_arr(b_value_arr *array) {
   array->capacity = 0;
   array->count = 0;
   array->values = NULL;
+  pthread_mutex_init(&array->lock, NULL);
 }
 
 void init_byte_arr(b_vm *vm, b_byte_arr *array, int length) {
   array->count = length;
-  array->bytes = (unsigned char *) calloc(length, sizeof(unsigned char));
+  if(length > 0) {
+    array->bytes = (unsigned char *) calloc(length, sizeof(unsigned char));
+  } else {
+    array->bytes = NULL;
+  }
   vm->bytes_allocated += sizeof(unsigned char) * length;
+  pthread_mutex_init(&array->lock, NULL);
 }
 
 void write_value_arr(b_vm *vm, b_value_arr *array, b_value value) {
+  pthread_mutex_lock(&array->lock);
+
   if (array->capacity < array->count + 1) {
     int old_capacity = array->capacity;
     array->capacity = GROW_CAPACITY(old_capacity);
@@ -30,9 +38,12 @@ void write_value_arr(b_vm *vm, b_value_arr *array, b_value value) {
 
   array->values[array->count] = value;
   array->count++;
+
+  pthread_mutex_unlock(&array->lock);
 }
 
 void insert_value_arr(b_vm *vm, b_value_arr *array, b_value value, int index) {
+  pthread_mutex_lock(&array->lock);
 
   if (array->capacity <= index) {
     array->capacity = GROW_CAPACITY(index);
@@ -58,19 +69,26 @@ void insert_value_arr(b_vm *vm, b_value_arr *array, b_value value, int index) {
 
   array->values[index] = value;
   array->count++;
+
+  pthread_mutex_unlock(&array->lock);
 }
 
 void free_value_arr(b_vm *vm, b_value_arr *array) {
+  pthread_mutex_unlock(&array->lock);
+  pthread_mutex_destroy(&array->lock);
+
   FREE_ARRAY(b_value, array->values, array->capacity);
   init_value_arr(array);
 }
 
 void free_byte_arr(b_vm *vm, b_byte_arr *array) {
-  if(array && array->count > 0) {
+  pthread_mutex_unlock(&array->lock);
+  pthread_mutex_destroy(&array->lock);
+
+  if(array->count > 0) {
     FREE_ARRAY(unsigned char, array->bytes, array->count);
-    array->count = 0;
-    array->bytes = NULL;
   }
+  init_byte_arr(vm, array, 0);
 }
 
 static inline void do_print_value(b_value value, bool fix_string) {

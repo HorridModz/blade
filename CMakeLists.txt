@@ -153,7 +153,7 @@ add_dependencies(libblade pcre2)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-target_link_libraries(libblade PRIVATE Threads::Threads)
+target_link_libraries(libblade PUBLIC Threads::Threads)
 
 set_target_properties(libblade
 		PROPERTIES
@@ -204,8 +204,8 @@ set(LIBRARY_FILE "${OUTPUT_DIR}/$<TARGET_NAME:libblade>${CMAKE_SHARED_LIBRARY_SU
 add_custom_command(TARGET blade POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:blade> ${EXE_FILE}
 		COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:libblade> ${LIBRARY_FILE}
-		COMMAND ${EXE_FILE} "${PROJECT_SOURCE_DIR}/scripts/make_blade.b" "${PROJECT_SOURCE_DIR}"
-		COMMAND ${EXE_FILE} "${PROJECT_SOURCE_DIR}/scripts/ast.b" "${OUTPUT_DIR}/libs/ast"
+#		COMMAND ${EXE_FILE} "${PROJECT_SOURCE_DIR}/scripts/make_blade.b" "${PROJECT_SOURCE_DIR}"
+#		COMMAND ${EXE_FILE} "${PROJECT_SOURCE_DIR}/scripts/ast.b" "${OUTPUT_DIR}/libs/ast"
 		COMMENT "Generating Blade header and copy output..."
 )
 

@@ -101,6 +101,7 @@ typedef enum {
 typedef struct {
   int count;
   int capacity;
+  pthread_mutex_t lock;
   uint8_t *code;
   int *lines;
   b_value_arr constants;

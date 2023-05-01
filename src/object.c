@@ -357,6 +357,7 @@ b_obj_bytes *take_bytes(b_vm *vm, unsigned char *b, int length) {
   b_obj_bytes *bytes = ALLOCATE_OBJ(b_obj_bytes, OBJ_BYTES);
   bytes->bytes.count = length;
   bytes->bytes.bytes = b;
+  pthread_mutex_init(&bytes->bytes.lock, NULL);
   return bytes;
 }
 

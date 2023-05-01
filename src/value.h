@@ -127,11 +127,13 @@ typedef struct {
 typedef struct {
   int capacity;
   int count;
+  pthread_mutex_t lock;
   b_value *values;
 } b_value_arr;
 
 typedef struct {
   int count;
+  pthread_mutex_t lock;
   unsigned char *bytes;
 } b_byte_arr;
 
@@ -154,8 +156,6 @@ bool values_equal(b_value a, b_value b);
 char *value_to_string(b_vm *vm, b_value value);
 
 void init_byte_arr(b_vm *vm, b_byte_arr *array, int length);
-
-void take_byte_arr(b_vm *vm, b_byte_arr *array, unsigned char data, int length);
 
 void free_byte_arr(b_vm *vm, b_byte_arr *array);
 

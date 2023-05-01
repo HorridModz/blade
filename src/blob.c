@@ -3,6 +3,7 @@
 #include "vm.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 
 void init_blob(b_blob *blob) {
   blob->count = 0;
@@ -10,9 +11,12 @@ void init_blob(b_blob *blob) {
   blob->code = NULL;
   blob->lines = NULL;
   init_value_arr(&blob->constants);
+  pthread_mutex_init(&blob->lock, NULL);
 }
 
 void write_blob(b_vm *vm, b_blob *blob, uint8_t byte, int line) {
+  pthread_mutex_lock(&blob->lock);
+
   if (blob->capacity < blob->count + 1) {
     int old_capacity = blob->capacity;
     blob->capacity = GROW_CAPACITY(old_capacity);
@@ -23,9 +27,13 @@ void write_blob(b_vm *vm, b_blob *blob, uint8_t byte, int line) {
   blob->code[blob->count] = byte;
   blob->lines[blob->count] = line;
   blob->count++;
+
+  pthread_mutex_unlock(&blob->lock);
 }
 
 void free_blob(b_vm *vm, b_blob *blob) {
+  SILENT(pthread_mutex_trylock(&blob->lock));
+
   if (blob->code != NULL) {
     FREE_ARRAY(uint8_t, blob->code, blob->capacity);
   }
@@ -33,6 +41,10 @@ void free_blob(b_vm *vm, b_blob *blob) {
     FREE_ARRAY(int, blob->lines, blob->capacity);
   }
   free_value_arr(vm, &blob->constants);
+
+  pthread_mutex_unlock(&blob->lock);
+  pthread_mutex_destroy(&blob->lock);
+
   init_blob(blob);
 }
 
