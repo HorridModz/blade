@@ -65,6 +65,7 @@ struct s_vm {
   b_table methods_file;
   b_table methods_bytes;
   b_table methods_range;
+  b_table methods_thread;
 
   char **std_args;
   int std_args_count;
@@ -79,13 +80,14 @@ struct s_vm {
   bool should_exit_after_bytecode;
 
   // miscellaneous
-  long stdout_buffer_size;
+  bool is_child;
 };
 
 void init_vm(b_vm *vm);
-
+void init_thread_vm(b_vm *vm, b_vm *thread_vm, b_obj_func * func);
 void free_vm(b_vm *vm);
 
+b_ptr_result interpret_function(b_vm *vm, b_obj_func *function, bool is_thread);
 b_ptr_result interpret(b_vm *vm, b_obj_module *module, const char *source);
 
 void push(b_vm *vm, b_value value);

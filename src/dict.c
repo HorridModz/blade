@@ -97,7 +97,11 @@ DECLARE_DICT_METHOD(extend) {
   b_obj_dict *dict_cpy = AS_DICT(args[0]);
 
   for (int i = 0; i < dict_cpy->names.count; i++) {
-    write_value_arr(vm, &dict->names, dict_cpy->names.values[i]);
+    b_value tmp;
+    // avoid duplicate keys
+    if(!table_get(&dict->items, dict_cpy->names.values[i], &tmp)) {
+      write_value_arr(vm, &dict->names, dict_cpy->names.values[i]);
+    }
   }
   table_add_all(vm, &dict_cpy->items, &dict->items);
   RETURN;

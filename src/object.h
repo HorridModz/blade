@@ -7,6 +7,7 @@
 #include "value.h"
 
 #include <stdio.h>
+#include <pthread.h>
 
 typedef enum {
   TYPE_FUNCTION,
@@ -34,6 +35,7 @@ typedef enum {
 #define IS_DICT(v) is_obj_type(v, OBJ_DICT)
 #define IS_FILE(v) is_obj_type(v, OBJ_FILE)
 #define IS_RANGE(v) is_obj_type(v, OBJ_RANGE)
+#define IS_THREAD(v) is_obj_type(v, OBJ_THREAD)
 
 // promote b_value to object
 #define AS_STRING(v) ((b_obj_string *)AS_OBJ(v))
@@ -43,6 +45,7 @@ typedef enum {
 #define AS_CLASS(v) ((b_obj_class *)AS_OBJ(v))
 #define AS_INSTANCE(v) ((b_obj_instance *)AS_OBJ(v))
 #define AS_BOUND(v) ((b_obj_bound *)AS_OBJ(v))
+#define AS_THREAD(v) ((b_obj_thread *)AS_OBJ(v))
 
 // non-user objects
 #define AS_SWITCH(v) ((b_obj_switch *)AS_OBJ(v))
@@ -81,6 +84,7 @@ typedef enum {
   OBJ_INSTANCE,
   OBJ_NATIVE,
   OBJ_CLASS,
+  OBJ_THREAD,
 
   // non-user objects
   OBJ_MODULE,
@@ -226,6 +230,15 @@ typedef struct {
   b_ptr_free_fn free_fn;
 } b_obj_ptr;
 
+typedef struct {
+  b_obj obj;
+  bool running;
+  bool completed;
+  pthread_t *th;
+  b_obj_func *function;
+  b_vm *vm;
+} b_obj_thread;
+
 // non-user objects...
 b_obj_module *new_module(b_vm *vm, char *name, char *file);
 
@@ -256,6 +269,8 @@ b_obj_instance *new_instance(b_vm *vm, b_obj_class *klass);
 b_obj_up_value *new_up_value(b_vm *vm, b_value *slot);
 
 b_obj_native *new_native(b_vm *vm, b_native_fn function, const char *name);
+
+b_obj_thread *new_thread(b_vm *vm, b_obj_func *func);
 
 b_obj_string *copy_string(b_vm *vm, const char *chars, int length);
 

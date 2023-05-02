@@ -176,6 +176,12 @@ void blacken_object(b_vm *vm, b_obj *object) {
       break;
     }
 
+    case OBJ_THREAD: {
+      b_obj_thread *thread = (b_obj_thread *) object;
+      mark_object(vm, (b_obj *) thread->function);
+      mark_object(vm, object);
+    }
+
     case OBJ_BYTES:
     case OBJ_RANGE:
     case OBJ_NATIVE:
@@ -274,6 +280,12 @@ void free_object(b_vm *vm, b_obj *object) {
       FREE(b_obj_instance, object);
       break;
     }
+    case OBJ_THREAD: {
+      b_obj_thread *thread = (b_obj_thread *) object;
+      FREE(pthread_t, thread->th);
+      FREE(b_obj_thread, object);
+      break;
+    }
     case OBJ_NATIVE: {
       FREE(b_obj_native, object);
       break;
@@ -325,21 +337,26 @@ static void mark_roots(b_vm *vm) {
       mark_object(vm, (b_obj *)handler.klass);
     }
   }
-  for (b_obj_up_value *up_value = vm->open_up_values; up_value != NULL;
-       up_value = up_value->next) {
+  for (b_obj_up_value *up_value = vm->open_up_values; up_value != NULL; up_value = up_value->next) {
     mark_object(vm, (b_obj *) up_value);
   }
+//  if(vm->current_frame) {
+//    mark_table(vm, &vm->current_frame->closure->function->module->values);
+//  }
   mark_table(vm, &vm->globals);
   mark_table(vm, &vm->modules);
 
-  mark_table(vm, &vm->methods_string);
-  mark_table(vm, &vm->methods_bytes);
-  mark_table(vm, &vm->methods_file);
-  mark_table(vm, &vm->methods_list);
-  mark_table(vm, &vm->methods_dict);
-  mark_table(vm, &vm->methods_range);
+  if(!vm->is_child) {
+    mark_table(vm, &vm->methods_string);
+    mark_table(vm, &vm->methods_bytes);
+    mark_table(vm, &vm->methods_file);
+    mark_table(vm, &vm->methods_list);
+    mark_table(vm, &vm->methods_dict);
+    mark_table(vm, &vm->methods_range);
+    mark_table(vm, &vm->methods_thread);
 
-  mark_object(vm, (b_obj*)vm->exception_class);
+    mark_object(vm, (b_obj *) vm->exception_class);
+  }
   mark_compiler_roots(vm);
 }
 

@@ -326,7 +326,6 @@ static uint64_t siphash24(uint64_t k0, uint64_t k1, const char *src,
 } */
 
 #ifndef _WIN32
-
 inline uint32_t hash_string(const char *key, int length) {
 #else
 uint32_t hash_string(const char *key, int length) {
@@ -438,13 +437,9 @@ static b_value find_max_value(b_value a, b_value b) {
     if (IS_STRING(a) && IS_STRING(b)) {
       return strcmp(AS_C_STRING(a), AS_C_STRING(b)) >= 0 ? a : b;
     } else if (IS_FUNCTION(a) && IS_FUNCTION(b)) {
-      return AS_FUNCTION(a)->arity >= AS_FUNCTION(b)->arity
-             ? a
-             : b;
+      return AS_FUNCTION(a)->arity >= AS_FUNCTION(b)->arity ? a : b;
     } else if (IS_CLOSURE(a) && IS_CLOSURE(b)) {
-      return AS_CLOSURE(a)->function->arity >= AS_CLOSURE(b)->function->arity
-             ? a
-             : b;
+      return AS_CLOSURE(a)->function->arity >= AS_CLOSURE(b)->function->arity ? a : b;
     } else if (IS_RANGE(a) && IS_RANGE(b)) {
       return AS_RANGE(a)->lower >= AS_RANGE(b)->lower ? a : b;
     } else if (IS_CLASS(a) && IS_CLASS(b)) {
@@ -479,12 +474,10 @@ void sort_values(b_value *values, int count) {
         values[j] = temp;
 
         if (IS_LIST(values[i]))
-          sort_values(AS_LIST(values[i])->items.values,
-                      AS_LIST(values[i])->items.count);
+          sort_values(AS_LIST(values[i])->items.values, AS_LIST(values[i])->items.count);
 
         if (IS_LIST(values[j]))
-          sort_values(AS_LIST(values[j])->items.values,
-                      AS_LIST(values[j])->items.count);
+          sort_values(AS_LIST(values[j])->items.values, AS_LIST(values[j])->items.count);
       }
     }
   }

@@ -14,6 +14,7 @@
 #include "list.h"
 #include "bstring.h"
 #include "range.h"
+#include "thread.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -285,8 +286,7 @@ static inline void define_native(b_vm *vm, const char *name, b_native_fn functio
   pop_n(vm, 2);
 }
 
-void define_native_method(b_vm *vm, b_table *table, const char *name,
-                          b_native_fn function) {
+void define_native_method(b_vm *vm, b_table *table, const char *name, b_native_fn function) {
   push(vm, STRING_VAL(name));
   push(vm, OBJ_VAL(new_native(vm, function, name)));
   table_set(vm, table, vm->stack[0], vm->stack[1]);
@@ -337,6 +337,7 @@ static void init_builtin_functions(b_vm *vm) {
   DEFINE_NATIVE(to_number);
   DEFINE_NATIVE(to_string);
   DEFINE_NATIVE(typeof);
+  DEFINE_NATIVE(thread);
 }
 
 static void init_builtin_methods(b_vm *vm) {
@@ -346,6 +347,7 @@ static void init_builtin_methods(b_vm *vm) {
 #define DEFINE_FILE_METHOD(name) DEFINE_METHOD(file, name)
 #define DEFINE_BYTES_METHOD(name) DEFINE_METHOD(bytes, name)
 #define DEFINE_RANGE_METHOD(name) DEFINE_METHOD(range, name)
+#define DEFINE_THREAD_METHOD(name) DEFINE_METHOD(thread, name)
 
   // string methods
   DEFINE_STRING_METHOD(length);
@@ -484,17 +486,25 @@ static void init_builtin_methods(b_vm *vm) {
   define_native_method(vm, &vm->methods_range, "@iter", native_method_range__iter__);
   define_native_method(vm, &vm->methods_range, "@itern", native_method_range__itern__);
 
+  // thread
+  DEFINE_THREAD_METHOD(start);
+  DEFINE_THREAD_METHOD(join);
+  DEFINE_THREAD_METHOD(cancel);
+  DEFINE_THREAD_METHOD(state);
+
 #undef DEFINE_STRING_METHOD
 #undef DEFINE_LIST_METHOD
 #undef DEFINE_DICT_METHOD
 #undef DEFINE_FILE_METHOD
 #undef DEFINE_BYTES_METHOD
 #undef DEFINE_RANGE_METHOD
+#undef DEFINE_THREAD_METHOD
 }
 
 void init_vm(b_vm *vm) {
-
   reset_stack(vm);
+
+  vm->is_child = false;
   vm->compiler = NULL;
   vm->objects = NULL;
   vm->exception_class = NULL;
@@ -517,8 +527,6 @@ void init_vm(b_vm *vm) {
   vm->std_args = NULL;
   vm->std_args_count = 0;
 
-  vm->stdout_buffer_size = 0L;
-
   init_table(&vm->modules);
   init_table(&vm->strings);
   init_table(&vm->globals);
@@ -530,9 +538,53 @@ void init_vm(b_vm *vm) {
   init_table(&vm->methods_file);
   init_table(&vm->methods_bytes);
   init_table(&vm->methods_range);
+  init_table(&vm->methods_thread);
 
   init_builtin_functions(vm);
   init_builtin_methods(vm);
+}
+
+void init_thread_vm(b_vm *vm, b_vm *thread_vm, b_obj_func * func) {
+  reset_stack(thread_vm);
+
+  thread_vm->is_child = true;
+  thread_vm->compiler = NULL;
+  thread_vm->objects = NULL;
+  thread_vm->exception_class = vm->exception_class;
+  thread_vm->current_frame = NULL;
+  thread_vm->root_file = NULL;
+  thread_vm->bytes_allocated = 0;
+  thread_vm->gc_protected = 0;
+  thread_vm->next_gc = DEFAULT_GC_START; // default is 1mb. Can be modified via the -g flag.
+  thread_vm->is_repl = vm->is_repl;
+  thread_vm->mark_value = vm->mark_value;
+  thread_vm->show_warnings = vm->show_warnings;
+  thread_vm->should_debug_stack = vm->should_debug_stack;
+  thread_vm->should_print_bytecode = vm->should_print_bytecode;
+  thread_vm->should_exit_after_bytecode = vm->should_exit_after_bytecode;
+
+  thread_vm->gray_count = 0;
+  thread_vm->gray_capacity = 0;
+  thread_vm->gray_stack = NULL;
+
+  thread_vm->std_args = vm->std_args;
+  thread_vm->std_args_count = vm->std_args_count;
+
+  init_table(&thread_vm->modules);
+  table_add_all(thread_vm, &vm->modules, &thread_vm->modules);
+  init_table(&thread_vm->strings);
+  table_add_all(thread_vm, &vm->modules, &thread_vm->modules);
+  init_table(&thread_vm->globals);
+  table_add_all(thread_vm, &vm->modules, &thread_vm->modules);
+
+  // object methods tables
+  thread_vm->methods_string = vm->methods_string;
+  thread_vm->methods_list = vm->methods_list;
+  thread_vm->methods_dict = vm->methods_dict;
+  thread_vm->methods_file = vm->methods_file;
+  thread_vm->methods_bytes = vm->methods_bytes;
+  thread_vm->methods_range = vm->methods_range;
+  thread_vm->methods_thread = vm->methods_thread;
 }
 
 void free_vm(b_vm *vm) {
@@ -543,11 +595,14 @@ void free_vm(b_vm *vm) {
   free_table(vm, &vm->globals);
   free_table(vm, &vm->strings);
 
-  free_table(vm, &vm->methods_string);
-  free_table(vm, &vm->methods_list);
-  free_table(vm, &vm->methods_dict);
-  free_table(vm, &vm->methods_file);
-  free_table(vm, &vm->methods_bytes);
+  if(!vm->is_child) {
+    free_table(vm, &vm->methods_string);
+    free_table(vm, &vm->methods_list);
+    free_table(vm, &vm->methods_dict);
+    free_table(vm, &vm->methods_file);
+    free_table(vm, &vm->methods_bytes);
+    free_table(vm, &vm->methods_thread);
+  }
 }
 
 static bool call(b_vm *vm, b_obj_closure *closure, int arg_count) {
@@ -657,8 +712,7 @@ static inline b_func_type get_method_type(b_value method) {
   }
 }
 
-inline bool invoke_from_class(b_vm *vm, b_obj_class *klass, b_obj_string *name,
-                       int arg_count) {
+inline bool invoke_from_class(b_vm *vm, b_obj_class *klass, b_obj_string *name, int arg_count) {
   b_value method;
   if (table_get(&klass->methods, OBJ_VAL(name), &method)) {
     if (get_method_type(method) == TYPE_PRIVATE) {
@@ -761,6 +815,12 @@ static bool invoke(b_vm *vm, b_obj_string *name, int arg_count) {
           return call_native_method(vm, AS_NATIVE(value), arg_count);
         }
         return throw_exception(vm, "Range has no method %s()", name->chars);
+      }
+      case OBJ_THREAD: {
+        if (table_get(&vm->methods_thread, OBJ_VAL(name), &value)) {
+          return call_native_method(vm, AS_NATIVE(value), arg_count);
+        }
+        return throw_exception(vm, "Thread has no method %s()", name->chars);
       }
       case OBJ_DICT: {
         if (table_get(&vm->methods_dict, OBJ_VAL(name), &value)) {
@@ -1848,6 +1908,16 @@ b_ptr_result run(b_vm *vm) {
               runtime_error("class Range has no named property '%s'", name->chars);
               break;
             }
+            case OBJ_THREAD: {
+              if (table_get(&vm->methods_thread, OBJ_VAL(name), &value)) {
+                pop(vm); // pop the list...
+                push(vm, value);
+                break;
+              }
+
+              runtime_error("class Thread has no named property '%s'", name->chars);
+              break;
+            }
             case OBJ_DICT: {
               if (table_get(&AS_DICT(peek(vm, 0))->items, OBJ_VAL(name), &value) ||
                   table_get(&vm->methods_dict, OBJ_VAL(name), &value)) {
@@ -2487,6 +2557,22 @@ b_ptr_result run(b_vm *vm) {
 #undef BINARY_MOD_OP
 }
 
+b_ptr_result interpret_function(b_vm *vm, b_obj_func *function, bool is_thread) {
+  push(vm, OBJ_VAL(function));
+  b_obj_closure *closure = new_closure(vm, function);
+  pop(vm);
+  if(is_thread) {
+    // we are resetting the compiler here to allow the main thread continue to
+    // manage the lifetime of the thread functions including those created by
+    // other threads.
+    vm->compiler = NULL;
+  }
+  push(vm, OBJ_VAL(closure));
+  call(vm, closure, 0);
+
+  return run(vm);
+}
+
 b_ptr_result interpret(b_vm *vm, b_obj_module *module, const char *source) {
   b_blob blob;
   init_blob(&blob);
@@ -2506,15 +2592,7 @@ b_ptr_result interpret(b_vm *vm, b_obj_module *module, const char *source) {
     return PTR_COMPILE_ERR;
   }
 
-  push(vm, OBJ_VAL(function));
-  b_obj_closure *closure = new_closure(vm, function);
-  pop(vm);
-  push(vm, OBJ_VAL(closure));
-  call(vm, closure, 0);
-
-  b_ptr_result result = run(vm);
-
-  return result;
+  return interpret_function(vm, function, false);
 }
 
 #undef ERR_CANT_ASSIGN_EMPTY

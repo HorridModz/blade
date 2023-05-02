@@ -71,7 +71,7 @@ set(BLADE_SOURCES
 		src/standard/process.c
 		src/standard/reflect.c
 		src/standard/struct.c
-		)
+        src/thread.c)
 
 add_definitions(-DEXPORT_LIBS)
 if(UNIX AND NOT APPLE AND MUSL)
