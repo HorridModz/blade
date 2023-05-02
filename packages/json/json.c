@@ -2,15 +2,15 @@
 #include "json.h"
 
 
-b_value get_blade_value(b_vm *vm, json_value * data) {
+b_value get_blade_value(b_vm *vm, b_vm_thread *th, json_value * data) {
   b_value value;
   switch (data->type) {
     case json_object: {
       b_obj_dict *dict = (b_obj_dict*)GC(new_dict(vm, th));
       value = OBJ_VAL(dict);
       for (int i = 0; i < data->u.object.length; i++) {
-        b_obj_string *name = (b_obj_string *)GC(copy_string(vm, data->u.object.values[i].name, strlen(data->u.object.values[i].name)));
-        b_value _value = get_blade_value(vm, data->u.object.values[i].value);
+        b_obj_string *name = (b_obj_string *)GC(copy_string(vm, th, data->u.object.values[i].name, strlen(data->u.object.values[i].name)));
+        b_value _value = get_blade_value(vm, th, data->u.object.values[i].value);
         dict_set_entry(vm, dict, OBJ_VAL(name), _value);
       }
       break;
@@ -19,7 +19,7 @@ b_value get_blade_value(b_vm *vm, json_value * data) {
       b_obj_list *list = (b_obj_list*)GC(new_list(vm, th));
       value = OBJ_VAL(list);
       for (int i = 0; i < data->u.array.length; i++) {
-        write_list(vm, list, get_blade_value(vm, data->u.array.values[i]));
+        write_list(vm, list, get_blade_value(vm, th, data->u.array.values[i]));
       }
       break;
     }
@@ -64,7 +64,7 @@ DECLARE_MODULE_METHOD(json__decode) {
   if (value == 0) {
     RETURN_ERROR(error);
   }
-  b_value converted = get_blade_value(vm, value);
+  b_value converted = get_blade_value(vm, th, value);
   json_value_free(value);
 
   RETURN_VALUE(converted);

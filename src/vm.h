@@ -104,7 +104,7 @@ b_value peek(b_vm_thread *th, int distance);
 
 static inline void add_module(b_vm *vm, b_vm_thread *th, b_obj_module *module) {
   table_set(vm, &vm->modules, STRING_VAL(module->file), OBJ_VAL(module));
-  if (th->frame_count == 0) {
+  if (th->frame_count == 0 || vm->current_frame == NULL) {
     table_set(vm, &vm->globals, STRING_VAL(module->name), OBJ_VAL(module));
   } else {
     table_set(vm,
@@ -167,7 +167,7 @@ static inline void gc_clear_protection(b_vm_thread *th) {
 #define GC(o) gc_protect(th, (b_obj*)(o))
 #define CLEAR_GC() gc_clear_protection(th)
 
-b_vm_thread * new_vm_thread(b_vm *vm);
+b_vm_thread * new_vm_thread(b_vm *vm, bool is_root);
 void free_vm_thread(b_vm_thread *thread);
 
 #endif

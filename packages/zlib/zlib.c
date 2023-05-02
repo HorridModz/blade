@@ -16,7 +16,7 @@
 #endif
 
 #define DEFINE_ZLIB_CONSTANT(v) \
-  b_value __zlib_##v(b_vm *vm) { \
+  b_value __zlib_##v(b_vm *vm, b_vm_thread *th) { \
     return NUMBER_VAL(v); \
   }
 
@@ -69,7 +69,7 @@ DEFINE_ZLIB_CONSTANT(Z_DEFAULT_STRATEGY)
 
 // others
 DEFINE_ZLIB_CONSTANT(MAX_WBITS)
-b_value __zlib_Z_VERSION(b_vm *vm) {
+b_value __zlib_Z_VERSION(b_vm *vm, b_vm_thread *th) {
   const char* version = zlibVersion();
   return STRING_VAL(version);
 }
@@ -179,7 +179,7 @@ DECLARE_MODULE_METHOD(zlib_deflate) {
 
   ret = deflateEnd(&strm);
   if(ret == Z_OK) {
-    RETURN_OBJ(take_bytes(vm, output, output_length));
+    RETURN_OBJ(take_bytes(vm, th, output, output_length));
   }
 
   RETURN_ERROR("deflate(): Error %d while finishing deflation", ret);
@@ -261,7 +261,7 @@ DECLARE_MODULE_METHOD(zlib_inflate) {
 
   ret = inflateEnd(&strm);
   if(ret == Z_OK) {
-    RETURN_OBJ(take_bytes(vm,output, output_length));
+    RETURN_OBJ(take_bytes(vm, th,output, output_length));
   }
 
   RETURN_ERROR("inflate(): Error %d while finishing inflation", ret);
@@ -298,7 +298,7 @@ DECLARE_MODULE_METHOD(zlib_gzread) {
     unsigned char *buffer = ALLOCATE(unsigned char, length);
     int bytes_read = gzread(file[0], buffer, length);
     if(bytes_read >= 0) {
-      RETURN_OBJ(take_bytes(vm, buffer, bytes_read));
+      RETURN_OBJ(take_bytes(vm, th, buffer, bytes_read));
     } else {
       RETURN_ERROR("%s", gzerror(file[0], &err));
     }

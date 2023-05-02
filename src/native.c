@@ -868,26 +868,22 @@ DECLARE_NATIVE(run_thread) {
 
   pthread_t *thread = ALLOCATE(pthread_t, 1);
   if(thread) {
-    b_vm_thread *vm_thread = new_vm_thread(vm);
+    b_vm_thread *vm_thread = new_vm_thread(vm, false);
     vm_thread->function = fn;
-    vm->thread->next = vm_thread;
+    vm_thread->th = thread;
+    b_thread_arg *thread_arg = ALLOCATE(b_thread_arg, 1);
+    if(thread_arg) {
+      thread_arg->function = fn;
+      thread_arg->thread = vm_thread;
+      thread_arg->vm = vm;
+      fn->obj.stale = true;
+      fn->module->obj.stale = true;
 
-    if(vm_thread) {
-      vm_thread->th = thread;
-      b_thread_arg *thread_arg = ALLOCATE(b_thread_arg, 1);
-      if(thread_arg) {
-        thread_arg->function = fn;
-        thread_arg->thread = vm_thread;
-        thread_arg->vm = vm;
-        fn->obj.stale = true;
-        fn->module->obj.stale = true;
-
-        if(pthread_create(thread, NULL, b_thread_function, thread_arg)) {
-          if(wait) {
-            pthread_join(*thread, 0);
-          } else {
-            pthread_detach(*thread);
-          }
+      if(pthread_create(thread, NULL, b_thread_function, thread_arg)) {
+        if(wait) {
+          pthread_join(*thread, 0);
+        } else {
+          pthread_detach(*thread);
         }
       }
     }

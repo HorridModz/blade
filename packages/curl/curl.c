@@ -4,17 +4,17 @@
 #include <math.h>
 
 #define DEFINE_CURL_CONSTANT(v) \
-  b_value __curl_##v(b_vm *vm) { \
+  b_value __curl_##v(b_vm *vm, b_vm_thread *th) { \
     return NUMBER_VAL((double)(v)); \
   }
 
 #define DEFINE_CURL_STR_CONSTANT(v) \
-  b_value __curl_##v(b_vm *vm) { \
+  b_value __curl_##v(b_vm *vm, b_vm_thread *th) { \
     return STRING_VAL(v); \
   }
 
 #define DEFINE_CURL_PTR_CONSTANT(v, j) \
-  b_value __curl_##v(b_vm *vm) { \
+  b_value __curl_##v(b_vm *vm, b_vm_thread *th) { \
     return OBJ_VAL(new_ptr(vm, (void*)v j)); \
   }
 
@@ -611,7 +611,7 @@ size_t b_CurlWriteFunc(void *ptr, size_t size, size_t nmemb, struct b_curl_strin
   return size*nmemb;
 }
 
-b_value __curl_version(b_vm *vm) {
+b_value __curl_version(b_vm *vm, b_vm_thread *th) {
   char *version = curl_version();
   return STRING_VAL(version);
 }
@@ -700,7 +700,7 @@ DECLARE_MODULE_METHOD(curl__easy_perform) {
   if(result == CURLE_OK) {
 
     b_obj_dict *dict = (b_obj_dict*)GC(new_dict(vm, th));
-    b_obj_bytes *data = (b_obj_bytes*)GC(copy_bytes(vm, body.ptr, body.len));
+    b_obj_bytes *data = (b_obj_bytes*)GC(copy_bytes(vm, th, body.ptr, body.len));
 
     dict_add_entry(vm, dict, GC_L_STRING("headers", 7), GC_STRING((char *)headers.ptr));
     dict_add_entry(vm, dict, GC_L_STRING("body", 4), OBJ_VAL(data));
@@ -829,7 +829,7 @@ DECLARE_MODULE_METHOD(curl__easy_escape) {
   char *result = curl_easy_escape(curl, string->chars, string->length);
 
   if(result != NULL) {
-    b_obj_string *n_string = (b_obj_string*)GC(copy_string(vm, result, (int)strlen(result)));
+    b_obj_string *n_string = (b_obj_string*)GC(copy_string(vm, th, result, (int)strlen(result)));
     curl_free(result);
     RETURN_OBJ(n_string);
   }
@@ -847,7 +847,7 @@ DECLARE_MODULE_METHOD(curl__easy_unescape) {
   char *result = curl_easy_unescape(curl, string->chars, string->length, &out_length);
 
   if(result != NULL) {
-    b_obj_string *n_string = (b_obj_string*)GC(copy_string(vm, result, (int)strlen(result)));
+    b_obj_string *n_string = (b_obj_string*)GC(copy_string(vm, th, result, (int)strlen(result)));
     curl_free(result);
     RETURN_OBJ(n_string);
   }

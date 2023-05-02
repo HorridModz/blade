@@ -25,14 +25,14 @@
 
 #define ERR_CANT_ASSIGN_EMPTY "empty cannot be assigned."
 
-inline b_vm_thread * new_vm_thread(b_vm *vm) {
+b_vm_thread * new_vm_thread(b_vm *vm, bool is_root) {
   b_vm_thread *thread = calloc(1, sizeof(b_vm_thread));
   if(thread) {
     thread->gc_protected = 0;
     thread->frame_count = 0;
     thread->th = NULL;
-    thread->is_root = false;
-    thread->next = vm->thread;
+    thread->is_root = is_root;
+    thread->next = is_root ? NULL : vm->thread;
     vm->thread = thread;
     thread->open_up_values = NULL;
     thread->stack_top = thread->stack;
@@ -64,7 +64,7 @@ static b_value get_stack_trace(b_vm *vm, b_vm_thread *th) {
 
   if (trace != NULL) {
 
-    for (int i = th->frame_count - 1; i >= 0; i--) {
+    for (int i = th->frame_count - 1; i >= 0 && th->frames[i].closure != NULL; i--) {
       b_call_frame *frame = &th->frames[i];
       b_obj_func *function = frame->closure->function;
 
@@ -521,9 +521,7 @@ static void init_builtin_methods(b_vm *vm, b_vm_thread *th) {
 }
 
 void init_vm(b_vm *vm) {
-  vm->thread = NULL;
-  vm->thread = new_vm_thread(vm);
-  vm->thread->is_root = true;
+  vm->thread = new_vm_thread(vm, true);
   reset_stack(vm, vm->thread);
 
   vm->compiler = NULL;

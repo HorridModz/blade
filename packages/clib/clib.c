@@ -11,7 +11,7 @@
 #endif
 
 #define CLIB_RETURN_PTR(handle, cf, ...) \
-  b_obj_ptr *ptr = (b_obj_ptr *)GC(new_ptr(vm, (handle))); \
+  b_obj_ptr *ptr = (b_obj_ptr *)GC(new_ptr(vm, th, (handle))); \
   const char *format = #cf; \
   int length = snprintf(NULL, 0, format, ##__VA_ARGS__); \
   ptr->name = ALLOCATE(char, length + 1); \
@@ -28,13 +28,13 @@ typedef struct {
 } b_ffi_type;
 
 #define DEFINE_CLIB_TYPE(v) \
-  b_value __clib_type_##v(b_vm *vm) { \
+  b_value __clib_type_##v(b_vm *vm, b_vm_thread *th) { \
     b_ffi_type *f = ALLOCATE(b_ffi_type, 1); \
     f->as_ffi = &ffi_type_##v;        \
     f->as_int = b_clib_type_##v;      \
     f->types = NULL;        \
     f->length = 0; \
-    b_obj_ptr *ptr = (b_obj_ptr *)GC(new_ptr(vm, (void *)f)); \
+    b_obj_ptr *ptr = (b_obj_ptr *)GC(new_ptr(vm, th, (void *)f)); \
     const char *format = "%s";        \
     const char *str = "<void *clib::type::" #v ">"; \
     int length = snprintf(NULL, 0, format, str); \
@@ -45,13 +45,13 @@ typedef struct {
   }
 
 #define DEFINE_CLIB_CTYPE(v) \
-  b_value __clib_type_##v(b_vm *vm) { \
+  b_value __clib_type_##v(b_vm *vm, b_vm_thread *th) { \
     b_ffi_type *f = ALLOCATE(b_ffi_type, 1); \
     f->as_ffi = &ffi_type_pointer;        \
     f->as_int = b_clib_type_##v;      \
     f->types = NULL;         \
     f->length = 0;\
-    b_obj_ptr *ptr = (b_obj_ptr *)GC(new_ptr(vm, (void *)f)); \
+    b_obj_ptr *ptr = (b_obj_ptr *)GC(new_ptr(vm, th, (void *)f)); \
     const char *format = "%s";        \
     const char *str = "<void *clib::type::" #v ">"; \
     int length = snprintf(NULL, 0, format, str); \
@@ -124,11 +124,11 @@ DEFINE_CLIB_TYPE(pointer);
 DEFINE_CLIB_CTYPE(char_ptr);
 DEFINE_CLIB_CTYPE(uchar_ptr);
 
-UNUSED b_value __clib_type_bool(b_vm *vm) {
+UNUSED b_value __clib_type_bool(b_vm *vm, b_vm_thread *th) {
   b_ffi_type *f = ALLOCATE(b_ffi_type, 1);
   f->as_ffi = &ffi_type_uint8;
   f->as_int = b_clib_type_bool;
-  b_obj_ptr *ptr = (b_obj_ptr *)GC(new_ptr(vm, (void *)f));
+  b_obj_ptr *ptr = (b_obj_ptr *)GC(new_ptr(vm, th, (void *)f));
   const char *format = "%s";
   const char *str = "<void *clib::type::bool>";
   ptr->name = ALLOCATE(char, 25);
@@ -394,7 +394,7 @@ DECLARE_MODULE_METHOD(clib_new) {
     memcpy(data + write_length, ret, type->as_ffi->size);
   }
 
-  RETURN_OBJ(take_bytes(vm, data, type->as_ffi->size));
+  RETURN_OBJ(take_bytes(vm, th, data, type->as_ffi->size));
 }
 
 DECLARE_MODULE_METHOD(clib_get) {
@@ -456,7 +456,7 @@ DECLARE_MODULE_METHOD(clib_get) {
         size_t size = type->as_ffi->elements[i]->size;
         unsigned char * result = ALLOCATE(unsigned char, size);
         memcpy(result, data + read_len, size);
-        write_list(vm, list, OBJ_VAL(take_bytes(vm, result, size)));
+        write_list(vm, list, OBJ_VAL(take_bytes(vm, th, result, size)));
         read_len += size;
         break;
       }
@@ -596,7 +596,7 @@ DECLARE_MODULE_METHOD(clib_call) {
 //#else
         unsigned char * result = ALLOCATE(unsigned char, handle->cif->rtype->size);
         ffi_call(handle->cif, handle->function, result, values->values);
-        b_obj_bytes *bytes = (b_obj_bytes *)GC(take_bytes(vm, result, handle->cif->rtype->size));
+        b_obj_bytes *bytes = (b_obj_bytes *)GC(take_bytes(vm, th, result, handle->cif->rtype->size));
 //#endif
         RETURN_OBJ(bytes);
       }
@@ -618,7 +618,7 @@ DECLARE_MODULE_METHOD(clib_get_ptr_index) {
   b_ffi_type *type = (b_ffi_type *) AS_PTR(args[1])->pointer;
   unsigned int index = AS_NUMBER(args[2]);
 
-  b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, type->as_ffi->size));
+  b_obj_bytes *bytes = (b_obj_bytes *)GC(new_bytes(vm, th, type->as_ffi->size));
   memcpy(bytes->bytes.bytes, ptr + (type->as_ffi->size * index), type->as_ffi->size);
   RETURN_OBJ(bytes);
 }
