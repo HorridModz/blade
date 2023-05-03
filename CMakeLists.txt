@@ -71,7 +71,7 @@ set(BLADE_SOURCES
 		src/standard/process.c
 		src/standard/reflect.c
 		src/standard/struct.c
-        src/thread.c)
+		src/async.c)
 
 add_definitions(-DEXPORT_LIBS)
 if(UNIX AND NOT APPLE AND MUSL)
@@ -212,15 +212,15 @@ message(STATUS "  C compiler ...................... : ${CMAKE_C_COMPILER}")
 message(STATUS "  Build type ...................... : ${buildtype}")
 message(STATUS "  C compiler flags ................ : ${${CMAKE_C_FLAGS}${cfsp}}${CMAKE_C_FLAGS_${buildtype}}")
 
-# for LTO
-include(CheckIPOSupported)
-check_ipo_supported(RESULT LTOSupported OUTPUT LTOSupportError)
-if(LTOSupported)
-	message(STATUS "  IPO/LTO ......................... : enabled")
-	set_property(TARGET libblade PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-else()
-	message(STATUS "  IPO/LTO ......................... : not supported: <${LTOSupportError}>")
-endif()
+## for LTO
+#include(CheckIPOSupported)
+#check_ipo_supported(RESULT LTOSupported OUTPUT LTOSupportError)
+#if(LTOSupported)
+#	message(STATUS "  IPO/LTO ......................... : enabled")
+#	set_property(TARGET libblade PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+#else()
+#	message(STATUS "  IPO/LTO ......................... : not supported: <${LTOSupportError}>")
+#endif()
 
 # Generating single header file...
 generate_export_header(libblade           # generates the export header shared_EXPORTS.h automatically

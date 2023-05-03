@@ -250,6 +250,8 @@ int disassemble_instruction(b_blob *blob, int offset) {
 
       return offset;
     }
+    case OP_ASYNC:
+      return short_instruction("async", blob, offset);
     case OP_CALL:
       return byte_instruction("call", blob, offset);
     case OP_INVOKE:

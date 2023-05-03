@@ -218,6 +218,7 @@ static int get_code_args_count(const uint8_t *bytecode,
     case OP_EJECT_IMPORT:
     case OP_EJECT_NATIVE_IMPORT:
     case OP_SELECT_IMPORT:
+    case OP_ASYNC:
       return 2;
 
     case OP_INVOKE:
@@ -613,6 +614,7 @@ static void declaration(b_parser *p);
 
 static void anonymous(b_parser *p, bool can_assign);
 static void anonymous_compat(b_parser *p, bool can_assign);
+static void async(b_parser *p, bool can_assign);
 
 static b_parse_rule *get_rule(b_tkn_type type);
 
@@ -1352,6 +1354,7 @@ b_parse_rule parse_rules[] = {
     // keywords
     [AND_TOKEN] = {NULL, and_, PREC_AND},
     [AS_TOKEN] = {NULL, NULL, PREC_NONE},
+    [ASYNC_TOKEN] = {async, NULL, PREC_NONE},
     [ASSERT_TOKEN] = {NULL, NULL, PREC_NONE},
     [BREAK_TOKEN] = {NULL, NULL, PREC_NONE},
     [CLASS_TOKEN] = {NULL, NULL, PREC_NONE},
@@ -1534,6 +1537,22 @@ static void method(b_parser *p, b_token class_name, bool is_static) {
 
   function(p, type);
   emit_byte_and_short(p, OP_METHOD, constant);
+}
+
+static void async(b_parser *p, bool can_assign) {
+  b_compiler compiler;
+  init_compiler(p, &compiler, TYPE_FUNCTION);
+  begin_scope(p);
+
+  // compile the body
+  ignore_whitespace(p);
+  consume(p, LBRACE_TOKEN, "expected '{' before async block");
+  block(p);
+
+  // create the function object
+  b_obj_func *function = end_compiler(p);
+
+  emit_byte_and_short(p, OP_ASYNC, make_constant(p, OBJ_VAL(function)));
 }
 
 static void anonymous(b_parser *p, bool can_assign) {

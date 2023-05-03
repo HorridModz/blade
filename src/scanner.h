@@ -61,6 +61,7 @@ typedef enum {
   // keywords
   AND_TOKEN,
   AS_TOKEN,
+  ASYNC_TOKEN,
   ASSERT_TOKEN,
   BREAK_TOKEN,
   CATCH_TOKEN,

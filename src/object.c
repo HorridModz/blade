@@ -164,8 +164,8 @@ b_obj_closure *new_closure(b_vm *vm, b_obj_func *function) {
   return closure;
 }
 
-b_obj_thread *new_thread(b_vm *vm, b_obj_func *func) {
-  b_obj_thread *thread = ALLOCATE_OBJ(b_obj_thread, OBJ_THREAD);
+b_obj_async *new_async(b_vm *vm, b_obj_func *func) {
+  b_obj_async *thread = ALLOCATE_OBJ(b_obj_async, OBJ_ASYNC);
   thread->running = false;
   thread->completed = false;
   thread->function = func;
@@ -173,8 +173,6 @@ b_obj_thread *new_thread(b_vm *vm, b_obj_func *func) {
   push(vm, OBJ_VAL(thread));
   thread->vm = ALLOCATE(b_vm, 1);
   pop(vm);
-
-  thread->th = ALLOCATE(pthread_t, 1);
 
   init_thread_vm(vm, thread->vm, func);
   return thread;
@@ -347,9 +345,9 @@ void print_object(b_value value, bool fix_string) {
       printf("<function %s(native) at %p>", native->name, (void *) native);
       break;
     }
-    case OBJ_THREAD: {
-      b_obj_thread *thread = AS_THREAD(value);
-      printf("<function %s(thread) at %p>", thread->function->name->chars, (void *) thread);
+    case OBJ_ASYNC: {
+      b_obj_async *thread = AS_ASYNC(value);
+      printf("<async %s(%s) at %p>", thread->function->module->name, thread->function->module->file, (void *) thread);
       break;
     }
     case OBJ_UP_VALUE: {
@@ -515,12 +513,12 @@ char *object_to_string(b_vm *vm, b_value value) {
       }
       return str;
     }
-    case OBJ_THREAD: {
-      const char *format = "<function %s(thread)>";
-      const b_obj_thread *thread = AS_THREAD(value);
-      char *str = ALLOCATE(char, snprintf(NULL, 0, format, thread->function->name->chars));
+    case OBJ_ASYNC: {
+      const char *format = "<async %s(%s)>";
+      const b_obj_async *thread = AS_ASYNC(value);
+      char *str = ALLOCATE(char, snprintf(NULL, 0, format, thread->function->module->name, thread->function->module->file));
       if(str != NULL) {
-        sprintf(str, format, thread->function->name->chars);
+        sprintf(str, format, thread->function->module->name, thread->function->module->file);
       }
       return str;
     }
@@ -578,8 +576,8 @@ const char *object_type(b_obj *object) {
     case OBJ_STRING:
       return "string";
 
-    case OBJ_THREAD:
-      return "thread";
+    case OBJ_ASYNC:
+      return "async";
 
       //
     case OBJ_PTR:

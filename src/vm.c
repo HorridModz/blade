@@ -14,7 +14,7 @@
 #include "list.h"
 #include "bstring.h"
 #include "range.h"
-#include "thread.h"
+#include "async.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -347,7 +347,7 @@ static void init_builtin_methods(b_vm *vm) {
 #define DEFINE_FILE_METHOD(name) DEFINE_METHOD(file, name)
 #define DEFINE_BYTES_METHOD(name) DEFINE_METHOD(bytes, name)
 #define DEFINE_RANGE_METHOD(name) DEFINE_METHOD(range, name)
-#define DEFINE_THREAD_METHOD(name) DEFINE_METHOD(thread, name)
+#define DEFINE_ASYNC_METHOD(name) DEFINE_METHOD(async, name)
 
   // string methods
   DEFINE_STRING_METHOD(length);
@@ -487,10 +487,10 @@ static void init_builtin_methods(b_vm *vm) {
   define_native_method(vm, &vm->methods_range, "@itern", native_method_range__itern__);
 
   // thread
-  DEFINE_THREAD_METHOD(start);
-  DEFINE_THREAD_METHOD(join);
-  DEFINE_THREAD_METHOD(cancel);
-  DEFINE_THREAD_METHOD(state);
+  DEFINE_ASYNC_METHOD(start);
+  DEFINE_ASYNC_METHOD(join);
+  DEFINE_ASYNC_METHOD(cancel);
+  DEFINE_ASYNC_METHOD(state);
 
 #undef DEFINE_STRING_METHOD
 #undef DEFINE_LIST_METHOD
@@ -498,7 +498,7 @@ static void init_builtin_methods(b_vm *vm) {
 #undef DEFINE_FILE_METHOD
 #undef DEFINE_BYTES_METHOD
 #undef DEFINE_RANGE_METHOD
-#undef DEFINE_THREAD_METHOD
+#undef DEFINE_ASYNC_METHOD
 }
 
 void init_vm(b_vm *vm) {
@@ -538,7 +538,7 @@ void init_vm(b_vm *vm) {
   init_table(&vm->methods_file);
   init_table(&vm->methods_bytes);
   init_table(&vm->methods_range);
-  init_table(&vm->methods_thread);
+  init_table(&vm->methods_async);
 
   init_builtin_functions(vm);
   init_builtin_methods(vm);
@@ -584,7 +584,7 @@ void init_thread_vm(b_vm *vm, b_vm *thread_vm, b_obj_func * func) {
   thread_vm->methods_file = vm->methods_file;
   thread_vm->methods_bytes = vm->methods_bytes;
   thread_vm->methods_range = vm->methods_range;
-  thread_vm->methods_thread = vm->methods_thread;
+  thread_vm->methods_async = vm->methods_async;
 }
 
 void free_vm(b_vm *vm) {
@@ -601,7 +601,7 @@ void free_vm(b_vm *vm) {
     free_table(vm, &vm->methods_dict);
     free_table(vm, &vm->methods_file);
     free_table(vm, &vm->methods_bytes);
-    free_table(vm, &vm->methods_thread);
+    free_table(vm, &vm->methods_async);
   }
 }
 
@@ -816,8 +816,8 @@ static bool invoke(b_vm *vm, b_obj_string *name, int arg_count) {
         }
         return throw_exception(vm, "Range has no method %s()", name->chars);
       }
-      case OBJ_THREAD: {
-        if (table_get(&vm->methods_thread, OBJ_VAL(name), &value)) {
+      case OBJ_ASYNC: {
+        if (table_get(&vm->methods_async, OBJ_VAL(name), &value)) {
           return call_native_method(vm, AS_NATIVE(value), arg_count);
         }
         return throw_exception(vm, "Thread has no method %s()", name->chars);
@@ -1908,8 +1908,8 @@ b_ptr_result run(b_vm *vm) {
               runtime_error("class Range has no named property '%s'", name->chars);
               break;
             }
-            case OBJ_THREAD: {
-              if (table_get(&vm->methods_thread, OBJ_VAL(name), &value)) {
+            case OBJ_ASYNC: {
+              if (table_get(&vm->methods_async, OBJ_VAL(name), &value)) {
                 pop(vm); // pop the list...
                 push(vm, value);
                 break;
@@ -2058,6 +2058,12 @@ b_ptr_result run(b_vm *vm) {
           }
         }
 
+        break;
+      }
+      case OP_ASYNC: {
+        b_obj_func *function = AS_FUNCTION(READ_CONSTANT());
+        b_obj_async *async = new_async(vm, function);
+        push(vm, OBJ_VAL(async));
         break;
       }
       case OP_GET_UP_VALUE: {
@@ -2557,11 +2563,11 @@ b_ptr_result run(b_vm *vm) {
 #undef BINARY_MOD_OP
 }
 
-b_ptr_result interpret_function(b_vm *vm, b_obj_func *function, bool is_thread) {
+b_ptr_result interpret_function(b_vm *vm, b_obj_func *function, bool is_async) {
   push(vm, OBJ_VAL(function));
   b_obj_closure *closure = new_closure(vm, function);
   pop(vm);
-  if(is_thread) {
+  if(is_async) {
     // we are resetting the compiler here to allow the main thread continue to
     // manage the lifetime of the thread functions including those created by
     // other threads.

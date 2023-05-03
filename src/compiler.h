@@ -23,7 +23,6 @@ typedef enum {
   PREC_FACTOR,      // *, /, %, **, //
   PREC_UNARY, // !, -, ~, (++, -- this two will now be treated as statements)
   PREC_CALL,  // ., ()
-  PREC_PRIMARY
 } b_precedence;
 
 typedef struct {

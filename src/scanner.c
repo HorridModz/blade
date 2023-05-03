@@ -263,7 +263,10 @@ static b_tkn_type identifier_type(b_scanner *s) {
             return check_keyword(s, 2, 1, "d", AND_TOKEN);
           case 's':
             if (s->current - s->start > 2) {
-              return check_keyword(s, 2, 4, "sert", ASSERT_TOKEN);
+              switch (s->start[2]) {
+                case 'y': return check_keyword(s, 2, 3, "ync", ASYNC_TOKEN);
+                case 's' : return check_keyword(s, 2, 4, "sert", ASSERT_TOKEN);
+              }
             } else {
               return check_keyword(s, 2, 0, "", AS_TOKEN);
             }

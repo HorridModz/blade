@@ -176,9 +176,9 @@ void blacken_object(b_vm *vm, b_obj *object) {
       break;
     }
 
-    case OBJ_THREAD: {
-      b_obj_thread *thread = (b_obj_thread *) object;
-      mark_object(vm, (b_obj *) thread->function);
+    case OBJ_ASYNC: {
+      b_obj_async *async = (b_obj_async *) object;
+      mark_object(vm, (b_obj *) async->function);
       mark_object(vm, object);
     }
 
@@ -280,10 +280,9 @@ void free_object(b_vm *vm, b_obj *object) {
       FREE(b_obj_instance, object);
       break;
     }
-    case OBJ_THREAD: {
-      b_obj_thread *thread = (b_obj_thread *) object;
-      FREE(pthread_t, thread->th);
-      FREE(b_obj_thread, object);
+    case OBJ_ASYNC: {
+      b_obj_async *async = (b_obj_async *) object;
+      FREE(b_obj_async, object);
       break;
     }
     case OBJ_NATIVE: {
@@ -353,7 +352,7 @@ static void mark_roots(b_vm *vm) {
     mark_table(vm, &vm->methods_list);
     mark_table(vm, &vm->methods_dict);
     mark_table(vm, &vm->methods_range);
-    mark_table(vm, &vm->methods_thread);
+    mark_table(vm, &vm->methods_async);
 
     mark_object(vm, (b_obj *) vm->exception_class);
   }

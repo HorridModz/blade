@@ -55,6 +55,7 @@ typedef enum {
   OP_ASSERT,
   OP_DIE,
 
+  OP_ASYNC,
   OP_CLOSURE,
   OP_CALL,
   OP_INVOKE,
