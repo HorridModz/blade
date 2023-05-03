@@ -234,7 +234,7 @@ typedef struct {
   b_obj obj;
   bool running;
   bool completed;
-  pthread_t th;
+  pthread_t *th;
   b_obj_func *function;
   b_vm *vm;
 } b_obj_async;

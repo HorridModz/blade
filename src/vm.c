@@ -337,7 +337,6 @@ static void init_builtin_functions(b_vm *vm) {
   DEFINE_NATIVE(to_number);
   DEFINE_NATIVE(to_string);
   DEFINE_NATIVE(typeof);
-  DEFINE_NATIVE(thread);
 }
 
 static void init_builtin_methods(b_vm *vm) {
@@ -491,6 +490,7 @@ static void init_builtin_methods(b_vm *vm) {
   DEFINE_ASYNC_METHOD(join);
   DEFINE_ASYNC_METHOD(cancel);
   DEFINE_ASYNC_METHOD(state);
+  DEFINE_ASYNC_METHOD(copy);
 
 #undef DEFINE_STRING_METHOD
 #undef DEFINE_LIST_METHOD
@@ -573,9 +573,8 @@ void init_thread_vm(b_vm *vm, b_vm *thread_vm, b_obj_func * func) {
   init_table(&thread_vm->modules);
   table_add_all(thread_vm, &vm->modules, &thread_vm->modules);
   init_table(&thread_vm->strings);
-  table_add_all(thread_vm, &vm->modules, &thread_vm->modules);
-  init_table(&thread_vm->globals);
-  table_add_all(thread_vm, &vm->modules, &thread_vm->modules);
+  table_add_all(thread_vm, &vm->strings, &thread_vm->strings);
+  thread_vm->globals = vm->globals;
 
   // object methods tables
   thread_vm->methods_string = vm->methods_string;
@@ -592,10 +591,11 @@ void free_vm(b_vm *vm) {
   // since object in module can exist in globals
   // it must come before
   free_table(vm, &vm->modules);
-  free_table(vm, &vm->globals);
   free_table(vm, &vm->strings);
 
   if(!vm->is_child) {
+    printf("Got here...\n");
+    free_table(vm, &vm->globals);
     free_table(vm, &vm->methods_string);
     free_table(vm, &vm->methods_list);
     free_table(vm, &vm->methods_dict);
@@ -2062,6 +2062,7 @@ b_ptr_result run(b_vm *vm) {
       }
       case OP_ASYNC: {
         b_obj_func *function = AS_FUNCTION(READ_CONSTANT());
+        push(vm, OBJ_VAL(function));
         b_obj_async *async = new_async(vm, function);
         push(vm, OBJ_VAL(async));
         break;

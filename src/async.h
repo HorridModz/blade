@@ -5,30 +5,28 @@
 #include "native.h"
 #include "vm.h"
 
-#define DECLARE_THREAD_METHOD(name) DECLARE_METHOD(async##name)
-
-DECLARE_NATIVE(thread);
+#define DECLARE_ASYNC_METHOD(name) DECLARE_METHOD(async##name)
 
 /**
  * async.start()
  *
  * starts the background thread
  */
-DECLARE_THREAD_METHOD(start);
+DECLARE_ASYNC_METHOD(start);
 
 /**
  * async.join()
  *
  * joins the background thread and block until the thread finishes
  */
-DECLARE_THREAD_METHOD(join);
+DECLARE_ASYNC_METHOD(join);
 
 /**
  * async.cancel()
  *
  * cancels/exists the background thread
  */
-DECLARE_THREAD_METHOD(cancel);
+DECLARE_ASYNC_METHOD(cancel);
 
 /**
  * async.state()
@@ -38,6 +36,13 @@ DECLARE_THREAD_METHOD(cancel);
  * 1 - Running
  * 2 - Completed
  */
-DECLARE_THREAD_METHOD(state);
+DECLARE_ASYNC_METHOD(state);
+
+/**
+ * async.copy()
+ *
+ * returns a copy of this async that can run independent of it.
+ */
+DECLARE_ASYNC_METHOD(copy);
 
 #endif // BLADE_ASYNC_H

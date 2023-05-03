@@ -77,7 +77,7 @@ void mark_object(b_vm *vm, b_obj *object) {
     if (vm->gray_stack == NULL) {
       fflush(stdout); // flush out anything on stdout first
       fprintf(stderr, "GC encountered an error");
-      exit(1);
+      exit(EXIT_FAILURE);
     }
   }
   vm->gray_stack[vm->gray_count++] = object;
@@ -281,7 +281,6 @@ void free_object(b_vm *vm, b_obj *object) {
       break;
     }
     case OBJ_ASYNC: {
-      b_obj_async *async = (b_obj_async *) object;
       FREE(b_obj_async, object);
       break;
     }
@@ -342,10 +341,10 @@ static void mark_roots(b_vm *vm) {
 //  if(vm->current_frame) {
 //    mark_table(vm, &vm->current_frame->closure->function->module->values);
 //  }
-  mark_table(vm, &vm->globals);
   mark_table(vm, &vm->modules);
 
   if(!vm->is_child) {
+    mark_table(vm, &vm->globals);
     mark_table(vm, &vm->methods_string);
     mark_table(vm, &vm->methods_bytes);
     mark_table(vm, &vm->methods_file);

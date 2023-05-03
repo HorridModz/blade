@@ -165,16 +165,16 @@ b_obj_closure *new_closure(b_vm *vm, b_obj_func *function) {
 }
 
 b_obj_async *new_async(b_vm *vm, b_obj_func *func) {
+  b_vm *tvm = ALLOCATE(b_vm, 1);
+  init_thread_vm(vm, tvm, func);
+  pthread_t *th = ALLOCATE(pthread_t, 1);
+
   b_obj_async *thread = ALLOCATE_OBJ(b_obj_async, OBJ_ASYNC);
   thread->running = false;
   thread->completed = false;
   thread->function = func;
-
-  push(vm, OBJ_VAL(thread));
-  thread->vm = ALLOCATE(b_vm, 1);
-  pop(vm);
-
-  init_thread_vm(vm, thread->vm, func);
+  thread->vm = tvm;
+  thread->th = th;
   return thread;
 }
 
