@@ -32,8 +32,8 @@ typedef uint64_t unaligned_uint64_t;
 
 #define INC_OUTPUTPOS(a,b) \
   if ((a) < 0 || ((INT_MAX - outputpos)/((int)(b))) < (a)) { \
-    free(formatcodes);	\
-    free(formatargs);	\
+    FREE_ARRAY(char, formatcodes, formatlen); \
+    FREE_ARRAY(int, formatargs, formatlen); \
     RETURN_ERROR("Type %c: integer overflow in format string", code); \
   } \
   outputpos += (a)*(b);
@@ -84,8 +84,9 @@ static long to_long(b_vm *vm, b_value value) {
     return -1L;
   }
 
-  const char *v = (const char *) value_to_string(vm, value);
+  char *v = (char *) value_to_string(vm, value);
   int length = (int)strlen(v);
+  long result = 0;
 
   int start = 0, end = 1, multiplier = 1;
   if(v[0] == '-') {
@@ -99,15 +100,20 @@ static long to_long(b_vm *vm, b_value value) {
     memcpy(t, v + (end + 1), length - 2);
 
     if(v[end] == 'b') {
-      return (long)(multiplier * strtoll(t, NULL, 2));
+      result = (long)(multiplier * strtoll(t, NULL, 2));
     } else if(v[end] == 'x') {
-      return multiplier * strtol(t, NULL, 16);
+      result = multiplier * strtol(t, NULL, 16);
     } else if(v[end] == 'c') {
-      return multiplier * strtol(t, NULL, 8);
+      result = multiplier * strtol(t, NULL, 8);
     }
+
+    FREE_ARRAY(char, t, length - 2);
+  } else {
+    result = (long)strtod(v, NULL);
   }
 
-  return (long)strtod(v, NULL);
+  FREE(char, v);
+  return result;
 }
 
 static double to_double(b_vm *vm, b_value value) {
@@ -119,8 +125,9 @@ static double to_double(b_vm *vm, b_value value) {
     return -1;
   }
 
-  const char *v = (const char *) value_to_string(vm, value);
+  char *v = (char *) value_to_string(vm, value);
   int length = (int)strlen(v);
+  double result = 0.0;
 
   int start = 0, end = 1, multiplier = 1;
   if(v[0] == '-') {
@@ -134,15 +141,20 @@ static double to_double(b_vm *vm, b_value value) {
     memcpy(t, v + (end + 1), length - 2);
 
     if(v[end] == 'b') {
-      return (double)(multiplier * strtoll(t, NULL, 2));
+      result = (double)(multiplier * strtoll(t, NULL, 2));
     } else if(v[end] == 'x') {
-      return (double)(multiplier * strtol(t, NULL, 16));
+      result = (double)(multiplier * strtol(t, NULL, 16));
     } else if(v[end] == 'c') {
-      return (double)(multiplier * strtol(t, NULL, 8));
+      result = (double)(multiplier * strtol(t, NULL, 8));
     }
+
+    FREE_ARRAY(char, t, length - 2);
+  } else {
+    result = strtod(v, NULL);
   }
 
-  return strtod(v, NULL);
+  FREE(char, v);
+  return result;
 }
 
 static void do_pack(b_vm *vm, b_value val, size_t size, const int *map, unsigned char *output) {
@@ -324,8 +336,8 @@ DECLARE_MODULE_METHOD(struct_pack) {
       case 'h':
       case 'H':
         if (currentarg >= param_count) {
-          free(formatcodes);
-          free(formatargs);
+          FREE_ARRAY(char, formatcodes, formatlen);
+          FREE_ARRAY(int, formatargs, formatlen);
           RETURN_ERROR("Type %c: not enough arguments", code);
         }
 
@@ -381,15 +393,15 @@ DECLARE_MODULE_METHOD(struct_pack) {
 
         if (currentarg > param_count) {
 too_few_args:
-          free(formatcodes);
-          free(formatargs);
+          FREE_ARRAY(char, formatcodes, formatlen);
+          FREE_ARRAY(int, formatargs, formatlen);
           RETURN_ERROR("Type %c: too few arguments", code);
         }
         break;
 
       default:
-        free(formatcodes);
-        free(formatargs);
+        FREE_ARRAY(char, formatcodes, formatlen);
+        FREE_ARRAY(int, formatargs, formatlen);
         RETURN_ERROR("Type %c: unknown format code", code);
     }
 
@@ -699,12 +711,11 @@ too_few_args:
     }
   }
 
-  free(formatcodes);
-  free(formatargs);
+  FREE_ARRAY(char, formatcodes, formatlen);
+  FREE_ARRAY(int, formatargs, formatlen);
   output[outputpos] = '\0';
 
-  b_obj_bytes *bytes = (b_obj_bytes *)GC(take_bytes(vm, output, outputpos));
-  RETURN_OBJ(bytes);
+  RETURN_OBJ(take_bytes(vm, output, outputpos));
 }
 
 DECLARE_MODULE_METHOD(struct_unpack) {
@@ -876,13 +887,14 @@ DECLARE_MODULE_METHOD(struct_unpack) {
       if ((inputpos + size) <= inputlen) {
 
         char *real_name;
+        size_t real_name_len = 0;
 
         if (repetitions == 1 && namelen > 0) {
           /* Use a part of the formatarg argument directly as the name. */
           real_name = ALLOCATE(char, namelen);
           memcpy(real_name, name, namelen);
           real_name[namelen] = '\0';
-
+          real_name_len = namelen;
         } else {
           /* Need to add the 1-based element number to the name */
 
@@ -898,6 +910,7 @@ DECLARE_MODULE_METHOD(struct_unpack) {
           memcpy(real_name, name, namelen);
           memcpy(real_name + namelen, res, digits);
           real_name[namelen + digits] = '\0';
+          real_name_len = namelen + digits;
         }
 
         switch ((int) type) {
@@ -1159,6 +1172,8 @@ DECLARE_MODULE_METHOD(struct_unpack) {
             i = repetitions - 1;  /* Done, break out of for loop */
             break;
         }
+
+        FREE_ARRAY(char, real_name, real_name_len);
 
         inputpos += size;
         if (inputpos < 0) {

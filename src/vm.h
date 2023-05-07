@@ -81,13 +81,14 @@ struct s_vm {
 
   // miscellaneous
   bool is_child;
+  pthread_mutex_t native_mutex;
 };
 
 void init_vm(b_vm *vm);
-void init_thread_vm(b_vm *vm, b_vm *thread_vm, b_obj_func * func);
+void init_thread_vm(b_vm *vm, b_vm *thread_vm);
 void free_vm(b_vm *vm);
 
-b_ptr_result interpret_function(b_vm *vm, b_obj_func *function, bool is_async);
+b_ptr_result interpret_function(b_vm *vm, b_obj_closure *closure);
 b_ptr_result interpret(b_vm *vm, b_obj_module *module, const char *source);
 
 void push(b_vm *vm, b_value value);

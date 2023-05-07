@@ -164,15 +164,15 @@ b_obj_closure *new_closure(b_vm *vm, b_obj_func *function) {
   return closure;
 }
 
-b_obj_async *new_async(b_vm *vm, b_obj_func *func) {
+b_obj_async *new_async(b_vm *vm, b_obj_closure *closure) {
   b_vm *tvm = ALLOCATE(b_vm, 1);
-  init_thread_vm(vm, tvm, func);
+  init_thread_vm(vm, tvm);
   pthread_t *th = ALLOCATE(pthread_t, 1);
 
   b_obj_async *thread = ALLOCATE_OBJ(b_obj_async, OBJ_ASYNC);
   thread->running = false;
   thread->completed = false;
-  thread->function = func;
+  thread->closure = closure;
   thread->vm = tvm;
   thread->th = th;
   return thread;
@@ -347,7 +347,7 @@ void print_object(b_value value, bool fix_string) {
     }
     case OBJ_ASYNC: {
       b_obj_async *thread = AS_ASYNC(value);
-      printf("<async %s(%s) at %p>", thread->function->module->name, thread->function->module->file, (void *) thread);
+      printf("<async %s(%s) at %p>", thread->closure->function->module->name, thread->closure->function->module->file, (void *) thread);
       break;
     }
     case OBJ_UP_VALUE: {
@@ -516,9 +516,9 @@ char *object_to_string(b_vm *vm, b_value value) {
     case OBJ_ASYNC: {
       const char *format = "<async %s(%s)>";
       const b_obj_async *thread = AS_ASYNC(value);
-      char *str = ALLOCATE(char, snprintf(NULL, 0, format, thread->function->module->name, thread->function->module->file));
+      char *str = ALLOCATE(char, snprintf(NULL, 0, format, thread->closure->function->module->name, thread->closure->function->module->file));
       if(str != NULL) {
-        sprintf(str, format, thread->function->module->name, thread->function->module->file);
+        sprintf(str, format, thread->closure->function->module->name, thread->closure->function->module->file);
       }
       return str;
     }

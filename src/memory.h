@@ -19,7 +19,7 @@
   (type *)reallocate(vm, NULL, 0, sizeof(type) * (count))
 
 #define N_ALLOCATE(type, count)                                                  \
-  (type *)allocate(vm, (count))
+  (type *)allocate(vm, sizeof(type) * (count))
 
 void *allocate(b_vm *vm, size_t size);
 void *reallocate(b_vm *vm, void *pointer, size_t old_size, size_t new_size);

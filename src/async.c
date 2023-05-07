@@ -3,13 +3,12 @@
 
 void *blade_main_async_function(void *data) {
   b_obj_async *async = (b_obj_async *)data;
-  async->running = true;
-  b_ptr_result result = interpret_function(async->vm, async->function, true);
+//  async->running = true;
+  interpret_function(async->vm, async->closure);
   async->running = false;
   async->completed = true;
-  async->function->obj.stale = false;
-  async->obj.stale = false;
-  free_vm(async->vm);
+//  async->closure->obj.stale = false;
+//  async->obj.stale = false;
   return NULL;
 }
 
@@ -22,26 +21,24 @@ DECLARE_ASYNC_METHOD(start) {
     RETURN_ERROR("async already in running state");
   }
 
-  async->obj.stale = true;
-  async->function->obj.stale = true;
+//  async->obj.stale = true;
+//  async->closure->obj.stale = true;
   int result = pthread_create(async->th, NULL, blade_main_async_function, (void *)async);
   if(result == 0) {
+    if(!async->completed) async->running = true;
     RETURN_TRUE;
   }
-  char * error = strerror(result);
-  RETURN_STRING(error);
+  RETURN_ERROR(strerror(result));
 }
 
 DECLARE_ASYNC_METHOD(join) {
   ENFORCE_ARG_COUNT(join, 0);
   b_obj_async *async = AS_ASYNC(METHOD_OBJECT);
   if(async->running) {
-    int res = pthread_join(*async->th, NULL);
-    if(res == 0) {
-      RETURN_TRUE;
+    int result = pthread_join(*async->th, NULL);
+    if(result != 0) {
+      RETURN_ERROR(strerror(result));
     }
-    char * error = strerror(res);
-    RETURN_STRING(error);
   }
   RETURN_TRUE;
 }
@@ -50,12 +47,10 @@ DECLARE_ASYNC_METHOD(cancel) {
   ENFORCE_ARG_COUNT(cancel, 0);
   b_obj_async *async = AS_ASYNC(METHOD_OBJECT);
   if(async->running) {
-    int res = pthread_cancel(*async->th);
-    if(res == 0) {
-      RETURN_TRUE;
+    int result = pthread_cancel(*async->th);
+    if(result != 0) {
+      RETURN_ERROR(strerror(result));
     }
-    char * error = strerror(res);
-    RETURN_STRING(error);
   }
   RETURN_TRUE;
 }
@@ -74,6 +69,5 @@ DECLARE_ASYNC_METHOD(state) {
 DECLARE_ASYNC_METHOD(copy) {
   ENFORCE_ARG_COUNT(copy, 0);
   b_obj_async *async = AS_ASYNC(METHOD_OBJECT);
-  b_obj_async *n_async = (b_obj_async *)GC(new_async(vm, async->function));
-  RETURN_OBJ(n_async);
+  RETURN_OBJ(new_async(vm, async->closure));
 }

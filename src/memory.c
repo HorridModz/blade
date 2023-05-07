@@ -158,10 +158,17 @@ void blacken_object(b_vm *vm, b_obj *object) {
     }
 
     case OBJ_FUNCTION: {
-      b_obj_func *function = (b_obj_func *) object;
-      mark_object(vm, (b_obj *) function->name);
-      mark_object(vm, (b_obj *) function->module);
-      mark_array(vm, &function->blob.constants);
+      // NOTE: Remember that functions (in a thread or not) were
+      // created at compile time and as such will always reside on
+      // the compiler roots of main vm.
+      // Marking them in the child vm may cause this place to be stuck
+      // in a loop.
+      if(!vm->is_child) {
+        b_obj_func *function = (b_obj_func *) object;
+        mark_object(vm, (b_obj *) function->name);
+        mark_object(vm, (b_obj *) function->module);
+        mark_array(vm, &function->blob.constants);
+      }
       break;
     }
     case OBJ_INSTANCE: {
@@ -178,8 +185,9 @@ void blacken_object(b_vm *vm, b_obj *object) {
 
     case OBJ_ASYNC: {
       b_obj_async *async = (b_obj_async *) object;
-      mark_object(vm, (b_obj *) async->function);
+      mark_object(vm, (b_obj *) async->closure);
       mark_object(vm, object);
+      break;
     }
 
     case OBJ_BYTES:
@@ -281,6 +289,9 @@ void free_object(b_vm *vm, b_obj *object) {
       break;
     }
     case OBJ_ASYNC: {
+      b_obj_async *async = (b_obj_async *) object;
+      free_vm(async->vm);
+      FREE(pthread_t, async->th);
       FREE(b_obj_async, object);
       break;
     }
@@ -341,9 +352,9 @@ static void mark_roots(b_vm *vm) {
 //  if(vm->current_frame) {
 //    mark_table(vm, &vm->current_frame->closure->function->module->values);
 //  }
-  mark_table(vm, &vm->modules);
 
   if(!vm->is_child) {
+    mark_table(vm, &vm->modules);
     mark_table(vm, &vm->globals);
     mark_table(vm, &vm->methods_string);
     mark_table(vm, &vm->methods_bytes);
@@ -412,7 +423,7 @@ void collect_garbage(b_vm *vm) {
   table_remove_whites(vm, &vm->modules);
   sweep(vm);
 
-  vm->next_gc = vm->bytes_allocated * GC_HEAP_GROWTH_FACTOR;
+  vm->next_gc = (size_t)((double)vm->bytes_allocated * GC_HEAP_GROWTH_FACTOR);
   vm->mark_value = !vm->mark_value;
 
 #if defined(DEBUG_LOG_GC) && DEBUG_LOG_GC

@@ -542,9 +542,11 @@ void init_vm(b_vm *vm) {
 
   init_builtin_functions(vm);
   init_builtin_methods(vm);
+
+  pthread_mutex_init(&vm->native_mutex, NULL);
 }
 
-void init_thread_vm(b_vm *vm, b_vm *thread_vm, b_obj_func * func) {
+void init_thread_vm(b_vm *vm, b_vm *thread_vm) {
   reset_stack(thread_vm);
 
   thread_vm->is_child = true;
@@ -557,7 +559,7 @@ void init_thread_vm(b_vm *vm, b_vm *thread_vm, b_obj_func * func) {
   thread_vm->gc_protected = 0;
   thread_vm->next_gc = DEFAULT_GC_START; // default is 1mb. Can be modified via the -g flag.
   thread_vm->is_repl = vm->is_repl;
-  thread_vm->mark_value = vm->mark_value;
+  thread_vm->mark_value = true;
   thread_vm->show_warnings = vm->show_warnings;
   thread_vm->should_debug_stack = vm->should_debug_stack;
   thread_vm->should_print_bytecode = vm->should_print_bytecode;
@@ -570,11 +572,10 @@ void init_thread_vm(b_vm *vm, b_vm *thread_vm, b_obj_func * func) {
   thread_vm->std_args = vm->std_args;
   thread_vm->std_args_count = vm->std_args_count;
 
-  init_table(&thread_vm->modules);
-  table_add_all(thread_vm, &vm->modules, &thread_vm->modules);
   init_table(&thread_vm->strings);
   table_add_all(thread_vm, &vm->strings, &thread_vm->strings);
   thread_vm->globals = vm->globals;
+  thread_vm->modules = vm->modules;
 
   // object methods tables
   thread_vm->methods_string = vm->methods_string;
@@ -584,17 +585,18 @@ void init_thread_vm(b_vm *vm, b_vm *thread_vm, b_obj_func * func) {
   thread_vm->methods_bytes = vm->methods_bytes;
   thread_vm->methods_range = vm->methods_range;
   thread_vm->methods_async = vm->methods_async;
+
+  pthread_mutex_init(&thread_vm->native_mutex, NULL);
 }
 
 void free_vm(b_vm *vm) {
   free_objects(vm);
-  // since object in module can exist in globals
-  // it must come before
-  free_table(vm, &vm->modules);
   free_table(vm, &vm->strings);
 
   if(!vm->is_child) {
-    printf("Got here...\n");
+    // since object in module can exist in globals
+    // it must come before
+    free_table(vm, &vm->modules);
     free_table(vm, &vm->globals);
     free_table(vm, &vm->methods_string);
     free_table(vm, &vm->methods_list);
@@ -603,17 +605,21 @@ void free_vm(b_vm *vm) {
     free_table(vm, &vm->methods_bytes);
     free_table(vm, &vm->methods_async);
   }
+
+  pthread_mutex_destroy(&vm->native_mutex);
+  free(vm);
 }
 
 static bool call(b_vm *vm, b_obj_closure *closure, int arg_count) {
+  register const b_obj_func *function = closure->function;
   // fill empty parameters if not variadic
-  for (; !closure->function->is_variadic && arg_count < closure->function->arity; arg_count++) {
+  for (; !function->is_variadic && arg_count < function->arity; arg_count++) {
     push(vm, NIL_VAL);
   }
 
   // handle variadic arguments...
-  if (closure->function->is_variadic && arg_count >= closure->function->arity - 1) {
-    int va_args_start = arg_count - closure->function->arity;
+  if (function->is_variadic && arg_count >= function->arity - 1) {
+    int va_args_start = arg_count - function->arity;
     b_obj_list *args_list = new_list(vm);
     push(vm, OBJ_VAL(args_list));
 
@@ -625,14 +631,12 @@ static bool call(b_vm *vm, b_obj_closure *closure, int arg_count) {
     push(vm, OBJ_VAL(args_list));
   }
 
-  if (arg_count != closure->function->arity) {
+  if (arg_count != function->arity) {
     pop_n(vm, arg_count);
-    if (closure->function->is_variadic) {
-      return throw_exception(vm, "expected at least %d arguments but got %d",
-                             closure->function->arity - 1, arg_count);
+    if (function->is_variadic) {
+      return throw_exception(vm, "expected at least %d arguments but got %d", function->arity - 1, arg_count);
     } else {
-      return throw_exception(vm, "expected %d arguments but got %d",
-                             closure->function->arity, arg_count);
+      return throw_exception(vm, "expected %d arguments but got %d", function->arity, arg_count);
     }
   }
 
@@ -643,17 +647,28 @@ static bool call(b_vm *vm, b_obj_closure *closure, int arg_count) {
 
   b_call_frame *frame = &vm->frames[vm->frame_count++];
   frame->closure = closure;
-  frame->ip = closure->function->blob.code;
+  frame->ip = function->blob.code;
 
   frame->slots = vm->stack_top - arg_count - 1;
   return true;
 }
 
 static inline bool call_native_method(b_vm *vm, b_obj_native *native, int arg_count) {
+  // NOTE: ensuring only one thread can call a native function at a time will
+  // automatically cascade to all builtin object types. This simple trick allows
+  // us to ensure that only one thread can read, write or modify a list, string,
+  // bytes, file etc. at a time. This will in-turn create an automatic thread-safety
+  // for builtin types.
+  // By default, non builtin-types should be automatically thread safe because each
+  // thread has its own vm and stack to itself.
+  pthread_mutex_lock(&vm->native_mutex);
   if (native->function(vm, arg_count, vm->stack_top - arg_count)) {
     CLEAR_GC();
     vm->stack_top -= arg_count;
+  } else {
+    CLEAR_GC();
   }
+  pthread_mutex_unlock(&vm->native_mutex);
   return true;
 }
 
@@ -2063,7 +2078,10 @@ b_ptr_result run(b_vm *vm) {
       case OP_ASYNC: {
         b_obj_func *function = AS_FUNCTION(READ_CONSTANT());
         push(vm, OBJ_VAL(function));
-        b_obj_async *async = new_async(vm, function);
+        b_obj_closure *closure = new_closure(vm, function);
+        push(vm, OBJ_VAL(closure));
+        b_obj_async *async = new_async(vm, closure);
+        pop_n(vm, 2); // pop put the function and closure from stack.
         push(vm, OBJ_VAL(async));
         break;
       }
@@ -2564,17 +2582,11 @@ b_ptr_result run(b_vm *vm) {
 #undef BINARY_MOD_OP
 }
 
-b_ptr_result interpret_function(b_vm *vm, b_obj_func *function, bool is_async) {
-  push(vm, OBJ_VAL(function));
-  b_obj_closure *closure = new_closure(vm, function);
-  pop(vm);
-  if(is_async) {
-    // we are resetting the compiler here to allow the main thread continue to
-    // manage the lifetime of the thread functions including those created by
-    // other threads.
-    vm->compiler = NULL;
-  }
-  push(vm, OBJ_VAL(closure));
+b_ptr_result interpret_function(b_vm *vm, b_obj_closure *closure) {
+  // we are resetting the compiler here to allow the main thread continue to
+  // manage the lifetime of the thread functions including those created by
+  // other threads.
+  vm->compiler = NULL;
   call(vm, closure, 0);
 
   return run(vm);
@@ -2599,7 +2611,13 @@ b_ptr_result interpret(b_vm *vm, b_obj_module *module, const char *source) {
     return PTR_COMPILE_ERR;
   }
 
-  return interpret_function(vm, function, false);
+  push(vm, OBJ_VAL(function));
+  b_obj_closure *closure = new_closure(vm, function);
+  pop(vm);
+  push(vm, OBJ_VAL(closure));
+  call(vm, closure, 0);
+
+  return run(vm);
 }
 
 #undef ERR_CANT_ASSIGN_EMPTY

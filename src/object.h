@@ -185,6 +185,7 @@ typedef struct b_obj_native {
 struct s_obj_list {
   b_obj obj;
   b_value_arr items;
+  pthread_rwlock_t lock;
 };
 
 typedef struct {
@@ -235,7 +236,7 @@ typedef struct {
   bool running;
   bool completed;
   pthread_t *th;
-  b_obj_func *function;
+  b_obj_closure *closure;
   b_vm *vm;
 } b_obj_async;
 
@@ -270,7 +271,7 @@ b_obj_up_value *new_up_value(b_vm *vm, b_value *slot);
 
 b_obj_native *new_native(b_vm *vm, b_native_fn function, const char *name);
 
-b_obj_async *new_async(b_vm *vm, b_obj_func *func);
+b_obj_async *new_async(b_vm *vm, b_obj_closure *closure);
 
 b_obj_string *copy_string(b_vm *vm, const char *chars, int length);
 
